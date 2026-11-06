@@ -20,6 +20,8 @@ def score_kpi(kpi: sqlite3.Row, actuals: list[sqlite3.Row], evaluated_on: str) -
     달성률 = (실적 - 기준값) / (목표 - 기준값)
     기간 경과율 = (평가일 - 시작일) / (기한 - 시작일)
 
+    목표는 target_min을 쓰고, 상한만 있으면 target_max를 쓴다.
+
     이 패키지에서는 LLM을 호출하지 않는다. 지표 정의가 다르면 unverifiable을 반환한다.
     """
     raise NotImplementedError

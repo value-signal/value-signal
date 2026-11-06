@@ -1,1 +1,8 @@
-corp_code,rcept_no,category,metric,measure_type,target_value,unit,deadline,baseline_value,baseline_period,definition,quote
+rcept_no,corp_name,category,metric,target_min,target_max,unit,deadline
+20260701900248,비츠로셀,dividend,배당성향,20,,%,2026-12-31
+20260701900248,비츠로셀,capital_efficiency,ROE,25,,%,2030-12-31
+20260701900248,비츠로셀,treasury_stock,자기주식 소각,200000,200000,주,2026-07-06
+20260730800722,POSCO홀딩스,shareholder_return,주주환원율,35,40,%,2028-12-31
+20260730800722,POSCO홀딩스,capital_efficiency,ROIC,5.8,5.8,%,2028-12-31
+20260728800869,농심,dividend,배당성향,25,25,%,2030-12-31
+20260728800869,농심,dividend,주당 배당금,5000,,원,2030-12-31

@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import httpx
+import httpx2
 import pytest
 from google.genai import errors
 
@@ -87,6 +88,8 @@ def test_all_models_exhausted_raises_unavailable():
     [
         (SERVER_ERROR, "server"),
         (httpx.ReadTimeout("timeout"), "timeout"),
+        (httpx2.ReadTimeout("timeout"), "timeout"),
+        (httpx2.ConnectError("connect"), "timeout"),
         (reply(None), "empty_response"),
         (reply("   "), "empty_response"),
     ],

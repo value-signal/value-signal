@@ -35,10 +35,12 @@ CREATE TABLE IF NOT EXISTS kpi_targets (
     corp_code       TEXT NOT NULL REFERENCES companies (corp_code),
     chunk_id        INTEGER NOT NULL REFERENCES document_chunks (id),
     category        TEXT NOT NULL
-                    CHECK (category IN ('dividend', 'treasury_stock', 'capital_efficiency')),
+                    CHECK (category IN ('dividend', 'treasury_stock', 'shareholder_return',
+                                        'capital_efficiency')),
     metric          TEXT NOT NULL,
     measure_type    TEXT NOT NULL CHECK (measure_type IN ('level', 'cumulative')),
-    target_value    REAL NOT NULL,
+    target_min      REAL,
+    target_max      REAL,
     unit            TEXT NOT NULL,
     deadline        TEXT NOT NULL,
     baseline_value  REAL,
@@ -47,7 +49,8 @@ CREATE TABLE IF NOT EXISTS kpi_targets (
     quote           TEXT NOT NULL,
     review_status   TEXT NOT NULL DEFAULT 'pending'
                     CHECK (review_status IN ('pending', 'approved', 'rejected')),
-    created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    CHECK (target_min IS NOT NULL OR target_max IS NOT NULL)
 );
 
 CREATE TABLE IF NOT EXISTS actuals (

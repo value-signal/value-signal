@@ -4,6 +4,7 @@ from collections.abc import Callable, Sequence
 from typing import Literal, Protocol, TypeVar
 
 import httpx
+import httpx2
 from google import genai
 from google.genai import errors, types
 
@@ -13,6 +14,8 @@ T = TypeVar("T")
 Reason = Literal["quota", "timeout", "server", "empty_response"]
 
 RETRYABLE_SERVER_CODES = {500, 502, 503, 504}
+# SDK는 httpx2가 설치되어 있으면 httpx2를 쓴다.
+TRANSPORT_ERRORS = (httpx.TransportError, httpx2.TransportError)
 
 
 class LLMUnavailableError(Exception):
@@ -104,7 +107,7 @@ class GeminiClient:
                     failure = LLMUnavailableError("server", backoff)
                 else:
                     raise
-            except httpx.TransportError:
+            except TRANSPORT_ERRORS:
                 failure = LLMUnavailableError("timeout", backoff)
             except ValueError:  # 빈 응답 또는 깨진 JSON
                 failure = LLMUnavailableError("empty_response", backoff)
@@ -117,11 +120,13 @@ class GeminiClient:
         raise failure
 
 
-def create_llm_client(max_wait_seconds: float = 60, timeout_seconds: int = 120) -> GeminiClient:
-    """배치는 기본값을 쓰고, 사용자가 기다리는 Q&A는 더 짧은 값을 넘긴다."""
+def create_llm_client(
+    max_wait_seconds: float = 60, timeout_seconds: int = 120, max_attempts: int = 3
+) -> GeminiClient:
+    """배치는 기본값을 쓴다. 사용자가 기다리는 Q&A는 (5, 10, 1)처럼 빨리 포기하게 넘긴다."""
     client = genai.Client(
         api_key=settings.llm_api_key,
         http_options=types.HttpOptions(timeout=timeout_seconds * 1000),
     )
     models = [m for m in (settings.llm_model, settings.llm_fallback_model) if m]
-    return GeminiClient(client, models, max_wait_seconds)
+    return GeminiClient(client, models, max_wait_seconds, max_attempts)

@@ -1,1 +1,5 @@
-corp_code,stock_code,corp_name,market,is_exempt
+stock_code,corp_name,is_exempt
+082920,비츠로셀,0
+005490,POSCO홀딩스,0
+004370,농심,0
+042700,한미반도체,0

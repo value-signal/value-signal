@@ -13,3 +13,6 @@ db/*.sqlite*
 
 node_modules/
 web/dist/
+
+# OpenDartReader 기업코드 캐시
+docs_cache/

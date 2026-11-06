@@ -9,7 +9,7 @@ from pipeline.db import connect, init_db
 from pipeline.llm import LLMUnavailableError
 
 LATEST_SCORECARD_SQL = """
-SELECT k.id, k.category, k.metric, k.target_value, k.unit, k.deadline, k.quote,
+SELECT k.id, k.category, k.metric, k.target_min, k.target_max, k.unit, k.deadline, k.quote,
        s.status, s.achievement_rate, s.elapsed_rate, s.reason, s.evaluated_at
 FROM kpi_targets k
 LEFT JOIN scores s ON s.id = (
