@@ -15,7 +15,7 @@ Connection = psycopg.Connection[dict]
 def connect() -> Iterator[Connection]:
     # Neon 풀러를 쓰므로 prepared statement를 끈다.
     with psycopg.connect(
-        settings.database_url, row_factory=dict_row, prepare_threshold=None
+        settings.database_url, row_factory=dict_row, prepare_threshold=None, connect_timeout=10
     ) as conn:
         yield conn
 
