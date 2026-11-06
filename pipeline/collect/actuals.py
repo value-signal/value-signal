@@ -1,8 +1,9 @@
-import sqlite3
 from dataclasses import dataclass
 
 import OpenDartReader
 import pandas as pd
+
+from pipeline.db import Connection
 
 YEARS = (2024, 2025)
 WON_PER_MILLION = 1_000_000
@@ -163,7 +164,7 @@ def _load_statement(dart: OpenDartReader, corp_code: str, year: int) -> pd.DataF
     return statement
 
 
-def collect_actuals(conn: sqlite3.Connection, dart: OpenDartReader, corp_code: str) -> None:
+def collect_actuals(conn: Connection, dart: OpenDartReader, corp_code: str) -> None:
     """재무·배당·자사주 실적을 출처 공시와 함께 actuals에 저장한다."""
     actuals: list[Actual] = []
     for year in YEARS:
@@ -186,10 +187,10 @@ def collect_actuals(conn: sqlite3.Connection, dart: OpenDartReader, corp_code: s
         if issued is not None and not issued.empty:
             actuals += parse_issued_shares(issued, period_end)
 
-    conn.executemany(
+    conn.cursor().executemany(
         """
         INSERT INTO actuals (corp_code, metric, period_end, value, unit, rcept_no)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s)
         ON CONFLICT (corp_code, metric, period_end, rcept_no) DO UPDATE SET value = excluded.value
         """,
         [(corp_code, a.metric, a.period_end, a.value, a.unit, a.rcept_no) for a in actuals],

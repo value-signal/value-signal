@@ -1,9 +1,10 @@
 import hashlib
 import json
 import re
-import sqlite3
+from collections.abc import Mapping
 
 from pipeline.config import settings
+from pipeline.db import Connection
 from pipeline.llm import LLMClient
 
 UNANSWERABLE = "공시와 채점 데이터에서 확인할 수 없습니다."
@@ -49,7 +50,7 @@ JOIN disclosures d ON d.rcept_no = c.rcept_no
 LEFT JOIN scores s ON s.id = (
     SELECT id FROM scores WHERE kpi_target_id = k.id ORDER BY evaluated_at DESC, id DESC LIMIT 1
 )
-WHERE k.corp_code = ?
+WHERE k.corp_code = %s
 ORDER BY k.id
 """
 
@@ -57,7 +58,7 @@ CHUNK_SQL = """
 SELECT c.id, c.text, d.report_name, d.source_url
 FROM document_chunks c
 JOIN disclosures d ON d.rcept_no = c.rcept_no
-WHERE d.corp_code = ?
+WHERE d.corp_code = %s
 ORDER BY c.id
 """
 
@@ -70,7 +71,7 @@ def _value(value: float) -> str:
     return f"{value:,.2f}".rstrip("0").rstrip(".")
 
 
-def _target(kpi: sqlite3.Row) -> str:
+def _target(kpi: Mapping) -> str:
     low, high, unit = kpi["target_min"], kpi["target_max"], kpi["unit"]
     if low is not None and high is not None:
         return f"{_value(low)}{unit}" if low == high else f"{_value(low)}~{_value(high)}{unit}"
@@ -79,7 +80,7 @@ def _target(kpi: sqlite3.Row) -> str:
     return f"{_value(high)}{unit} 이하"
 
 
-def _kpi_line(kpi: sqlite3.Row) -> str:
+def _kpi_line(kpi: Mapping) -> str:
     parts = [f"지표: {kpi['metric']}", f"목표: {_target(kpi)}", f"기한: {kpi['deadline']}"]
     if kpi["definition"]:
         parts.append(f"기준: {kpi['definition']}")
@@ -101,7 +102,7 @@ def _kpi_line(kpi: sqlite3.Row) -> str:
     return f"[KPI {kpi['id']}] " + " / ".join(parts)
 
 
-def build_context(kpis: list[sqlite3.Row], chunks: list[sqlite3.Row]) -> str:
+def build_context(kpis: list[Mapping], chunks: list[Mapping]) -> str:
     lines = [_kpi_line(kpi) for kpi in kpis]
     lines += [f"[조각 {chunk['id']}]\n{chunk['text']}" for chunk in chunks]
     return "\n\n".join(lines)
@@ -117,7 +118,7 @@ def is_grounded(answer: str, context: str) -> bool:
 
 
 def _sources(
-    response: dict, kpis: list[sqlite3.Row], chunks: list[sqlite3.Row]
+    response: dict, kpis: list[Mapping], chunks: list[Mapping]
 ) -> list[dict]:
     kpi_by_id = {kpi["id"]: kpi for kpi in kpis}
     chunk_by_id = {chunk["id"]: chunk for chunk in chunks}
@@ -147,7 +148,7 @@ def _unanswerable() -> dict:
 
 
 def verify_response(
-    response: dict, context: str, kpis: list[sqlite3.Row], chunks: list[sqlite3.Row]
+    response: dict, context: str, kpis: list[Mapping], chunks: list[Mapping]
 ) -> dict:
     """LLM 답변을 코드로 검증한다. 출처가 없거나 근거에 없는 숫자가 있으면 버린다."""
     answer = (response.get("answer") or "").strip()
@@ -165,7 +166,7 @@ def _cache_key(corp_code: str, question: str, context: str) -> str:
 
 
 def answer_question(
-    conn: sqlite3.Connection, llm: LLMClient, corp_code: str, question: str
+    conn: Connection, llm: LLMClient, corp_code: str, question: str
 ) -> dict:
     kpis = conn.execute(KPI_SQL, (corp_code,)).fetchall()
     chunks = conn.execute(CHUNK_SQL, (corp_code,)).fetchall()
@@ -173,14 +174,14 @@ def answer_question(
     cache_key = _cache_key(corp_code, question, context)
 
     cached = conn.execute(
-        "SELECT response FROM qa_answers WHERE cache_key = ?", (cache_key,)
+        "SELECT response FROM qa_answers WHERE cache_key = %s", (cache_key,)
     ).fetchone()
     if cached:
         return {**json.loads(cached["response"]), "cached": True}
 
     used_today = conn.execute(
-        "SELECT count(*) FROM qa_answers WHERE date(created_at) = date('now')"
-    ).fetchone()[0]
+        "SELECT count(*) AS used FROM qa_answers WHERE created_at >= date_trunc('day', now())"
+    ).fetchone()["used"]
     if used_today >= settings.qa_daily_limit:
         raise QaLimitExceededError
 
@@ -189,7 +190,7 @@ def answer_question(
     result = verify_response(response, context, kpis, chunks)
 
     conn.execute(
-        "INSERT INTO qa_answers (cache_key, corp_code, question, response) VALUES (?, ?, ?, ?)",
+        "INSERT INTO qa_answers (cache_key, corp_code, question, response) VALUES (%s, %s, %s, %s)",
         (cache_key, corp_code, question, json.dumps(result, ensure_ascii=False)),
     )
     return {**result, "cached": False}

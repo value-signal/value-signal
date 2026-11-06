@@ -1,7 +1,7 @@
 import pytest
 
 from pipeline.collect.disclosures import is_plan_title, is_progress_title
-from pipeline.db import connect, init_db
+from pipeline.db import connect
 from pipeline.extract import chunking, review
 from pipeline.extract.claims import process_claims
 from pipeline.extract.kpi import extract_pending
@@ -32,12 +32,10 @@ class FakeLLM:
 
 
 @pytest.fixture
-def conn(tmp_path, monkeypatch):
+def conn(database, tmp_path, monkeypatch):
     monkeypatch.setattr(chunking, "ROOT_DIR", tmp_path)
     (tmp_path / "progress.xml").write_text(RAW, encoding="utf-8")
-    db_path = tmp_path / "test.sqlite"
-    init_db(db_path)
-    with connect(db_path) as connection:
+    with connect() as connection:
         connection.execute(
             "INSERT INTO companies (corp_code, stock_code, corp_name, market)"
             " VALUES ('c1', '000001', '테스트', 'KOSPI')"
@@ -53,12 +51,12 @@ def conn(tmp_path, monkeypatch):
         )
         connection.execute(
             "INSERT INTO document_chunks (id, rcept_no, chunk_index, text)"
-            " VALUES (1, 'plan1', 0, 'ROE 7%')"
+            " VALUES (100, 'plan1', 0, 'ROE 7%')"
         )
         connection.execute(
             "INSERT INTO kpi_targets (id, corp_code, chunk_id, category, metric, measure_type,"
             " target_min, unit, deadline, quote) VALUES"
-            " (1, 'c1', 1, 'capital_efficiency', 'ROE', 'level', 7, '%', '2027-12-31', 'ROE 7%')"
+            " (1, 'c1', 100, 'capital_efficiency', 'ROE', 'level', 7, '%', '2027-12-31', 'ROE 7%')"
         )
         connection.execute(
             "INSERT INTO actuals (corp_code, metric, period_end, value, unit, rcept_no)"
@@ -68,7 +66,7 @@ def conn(tmp_path, monkeypatch):
 
 
 def saved_values(conn):
-    return [row[0] for row in conn.execute("SELECT claimed_value FROM company_claims")]
+    return [row["claimed_value"] for row in conn.execute("SELECT claimed_value FROM company_claims")]
 
 
 @pytest.mark.parametrize(
@@ -115,7 +113,7 @@ def test_fake_qualifier_is_dropped_but_claim_is_kept(conn):
 
     process_claims(conn, llm, "p1")
 
-    assert conn.execute("SELECT qualifier FROM company_claims").fetchone()[0] is None
+    assert conn.execute("SELECT qualifier FROM company_claims").fetchone()["qualifier"] is None
     assert saved_values(conn) == [4.3]
 
 
@@ -181,4 +179,4 @@ def test_compare_all_claims_stores_result(conn):
     assert compare_all_claims(conn) == 1
 
     row = conn.execute("SELECT comparison, actual_value FROM company_claims").fetchone()
-    assert tuple(row) == ("differs", 0.32)
+    assert row == {"comparison": "differs", "actual_value": 0.32}

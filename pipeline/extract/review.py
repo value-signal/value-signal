@@ -1,18 +1,18 @@
 import csv
-import sqlite3
 
 from pipeline.config import ROOT_DIR
+from pipeline.db import Connection
 
 REVIEWS_PATH = ROOT_DIR / "data" / "kpi_reviews.csv"
 CLAIM_REVIEWS_PATH = ROOT_DIR / "data" / "claim_reviews.csv"
 
 MATCH_SQL = """
 SELECT k.id FROM kpi_targets k JOIN companies c USING (corp_code)
-WHERE c.stock_code = ? AND k.metric = ? AND coalesce(k.target_min, k.target_max) = ?
+WHERE c.stock_code = %s AND k.metric = %s AND coalesce(k.target_min, k.target_max) = %s
 """
 
 
-def apply_reviews(conn: sqlite3.Connection) -> int:
+def apply_reviews(conn: Connection) -> int:
     """사람이 검수한 결과를 반영한다. DB를 다시 만들어도 같은 결과가 나오도록 파일로 관리한다."""
     with REVIEWS_PATH.open(encoding="utf-8", newline="") as file:
         reviews = list(csv.DictReader(file))
@@ -28,12 +28,12 @@ def apply_reviews(conn: sqlite3.Connection) -> int:
         conn.execute(
             """
             UPDATE kpi_targets SET
-                metric = coalesce(?, metric),
-                start_year = coalesce(?, start_year),
-                review_status = CASE WHEN ? = 'reject' THEN 'rejected' ELSE review_status END,
-                unscorable_reason = CASE WHEN ? = 'unscorable' THEN ? ELSE unscorable_reason END,
-                review_note = ?
-            WHERE id = ?
+                metric = coalesce(%s, metric),
+                start_year = coalesce(%s, start_year),
+                review_status = CASE WHEN %s = 'reject' THEN 'rejected' ELSE review_status END,
+                unscorable_reason = CASE WHEN %s = 'unscorable' THEN %s ELSE unscorable_reason END,
+                review_note = %s
+            WHERE id = %s
             """,
             (
                 review["new_metric"] or None,
@@ -49,7 +49,7 @@ def apply_reviews(conn: sqlite3.Connection) -> int:
     return applied
 
 
-def remove_rejected_claims(conn: sqlite3.Connection) -> int:
+def remove_rejected_claims(conn: Connection) -> int:
     """사람이 실적이 아니라고 판단한 회사 표현을 지운다. 코드로는 목표와 실적을 구분할 수 없다."""
     with CLAIM_REVIEWS_PATH.open(encoding="utf-8", newline="") as file:
         reviews = list(csv.DictReader(file))
@@ -58,9 +58,9 @@ def remove_rejected_claims(conn: sqlite3.Connection) -> int:
     for review in reviews:
         removed += conn.execute(
             """
-            DELETE FROM company_claims WHERE claimed_value = ? AND kpi_target_id IN (
+            DELETE FROM company_claims WHERE claimed_value = %s AND kpi_target_id IN (
                 SELECT k.id FROM kpi_targets k JOIN companies c USING (corp_code)
-                WHERE c.stock_code = ? AND k.metric = ?
+                WHERE c.stock_code = %s AND k.metric = %s
             )
             """,
             (float(review["claimed_value"]), review["stock_code"], review["metric"]),

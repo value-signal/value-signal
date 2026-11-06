@@ -39,7 +39,7 @@ pipeline/
   run.py     배치 실행
 api/         FastAPI 서버
 web/         React 대시보드
-db/          스키마, 로컬 SQLite
+db/          PostgreSQL 스키마
 data/        대상 기업 목록, 원문 캐시
 evals/       정답 KPI, 추출 정확도 측정
 tests/       테스트
@@ -50,7 +50,7 @@ tests/       테스트
 필요한 도구: [uv](https://docs.astral.sh/uv/), Node.js 22 이상
 
 ```bash
-cp .env.example .env        # DART_API_KEY 입력
+cp .env.example .env        # DART_API_KEY, DATABASE_URL 입력
 uv sync
 uv run python -m pipeline.run init-db
 ```
@@ -71,6 +71,7 @@ npm run dev
 
 ```bash
 uv run python -m pipeline.run <init-db|collect|extract|review|claims|score|alert|all>
+docker run -d --name value-signal-pg -e POSTGRES_PASSWORD=test -e POSTGRES_DB=value_signal_test -p 127.0.0.1:54329:5432 postgres:17-alpine  # 테스트 DB
 uv run pytest
 uv run ruff check .
 ```

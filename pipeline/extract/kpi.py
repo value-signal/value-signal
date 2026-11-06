@@ -1,10 +1,10 @@
 import re
-import sqlite3
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from pydantic import ValidationError
 
+from pipeline.db import Connection
 from pipeline.extract.chunking import chunk_disclosure
 from pipeline.extract.schema import KpiExtraction, KpiExtractionResult
 from pipeline.llm import LLMClient, LLMUnavailableError
@@ -47,7 +47,7 @@ class ExtractionSummary:
     stopped_by: LLMUnavailableError | None = None
 
 
-def extract_kpis(llm: LLMClient, chunks: list[sqlite3.Row]) -> list[KpiExtraction]:
+def extract_kpis(llm: LLMClient, chunks: list[Mapping]) -> list[KpiExtraction]:
     """계획서 조각에서 KPI를 추출한다. 형식이 틀린 항목은 버린다."""
     document = "\n\n".join(f"[조각 {chunk['id']}]\n{chunk['text']}" for chunk in chunks)
     response = llm.complete_json(
@@ -86,15 +86,15 @@ def is_target_in_quote(kpi: KpiExtraction) -> bool:
     return targets <= numbers_in(kpi.source.quote)
 
 
-def process_disclosure(conn: sqlite3.Connection, llm: LLMClient, rcept_no: str) -> None:
+def process_disclosure(conn: Connection, llm: LLMClient, rcept_no: str) -> None:
     """공시 하나의 KPI를 추출·검증해 kpi_targets에 저장한다."""
     chunk_disclosure(conn, rcept_no)
     chunks = conn.execute(
-        "SELECT id, text FROM document_chunks WHERE rcept_no = ? ORDER BY chunk_index",
+        "SELECT id, text FROM document_chunks WHERE rcept_no = %s ORDER BY chunk_index",
         (rcept_no,),
     ).fetchall()
     corp_code = conn.execute(
-        "SELECT corp_code FROM disclosures WHERE rcept_no = ?", (rcept_no,)
+        "SELECT corp_code FROM disclosures WHERE rcept_no = %s", (rcept_no,)
     ).fetchone()["corp_code"]
     texts = {chunk["id"]: chunk["text"] for chunk in chunks}
 
@@ -106,12 +106,12 @@ def process_disclosure(conn: sqlite3.Connection, llm: LLMClient, rcept_no: str) 
         and is_quote_verified(kpi, texts[kpi.source.chunk_id])
         and is_target_in_quote(kpi)
     ]
-    conn.executemany(
+    conn.cursor().executemany(
         """
         INSERT INTO kpi_targets
             (corp_code, chunk_id, category, metric, measure_type, target_min, target_max, unit,
              deadline, baseline_value, baseline_period, definition, quote)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """,
         [
             (
@@ -136,7 +136,7 @@ def process_disclosure(conn: sqlite3.Connection, llm: LLMClient, rcept_no: str) 
 
 
 def extract_pending(
-    conn: sqlite3.Connection,
+    conn: Connection,
     process: Callable[[str], None],
     disclosure_type: str = "plan",
 ) -> ExtractionSummary:
@@ -148,7 +148,7 @@ def extract_pending(
         row["rcept_no"]
         for row in conn.execute(
             "SELECT rcept_no FROM disclosures"
-            " WHERE extracted_at IS NULL AND disclosure_type = ? ORDER BY disclosed_at",
+            " WHERE extracted_at IS NULL AND disclosure_type = %s ORDER BY disclosed_at",
             (disclosure_type,),
         )
     ]
@@ -159,7 +159,7 @@ def extract_pending(
             conn.rollback()
             return ExtractionSummary(done, len(pending) - done, error)
         conn.execute(
-            "UPDATE disclosures SET extracted_at = datetime('now') WHERE rcept_no = ?",
+            "UPDATE disclosures SET extracted_at = now() WHERE rcept_no = %s",
             (rcept_no,),
         )
         conn.commit()

@@ -1,10 +1,11 @@
 import json
 import re
-import sqlite3
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
 from typing import Literal
+
+from pipeline.db import Connection
 
 Status = Literal["achieved", "on_track", "delayed", "unverifiable"]
 
@@ -184,17 +185,17 @@ def score_kpi(kpi: Mapping, plan_year: int, actuals: Sequence[Mapping]) -> Score
     )
 
 
-def _is_same_as_latest(conn: sqlite3.Connection, kpi_id: int, result: ScoreResult) -> bool:
+def _is_same_as_latest(conn: Connection, kpi_id: int, result: ScoreResult) -> bool:
     latest = conn.execute(
-        "SELECT status, actual_value, reason FROM scores WHERE kpi_target_id = ?"
+        "SELECT status, actual_value, reason FROM scores WHERE kpi_target_id = %s"
         " ORDER BY evaluated_at DESC, id DESC LIMIT 1",
         (kpi_id,),
     ).fetchone()
-    return latest is not None and tuple(latest) == (
-        result.status,
-        result.actual_value,
-        result.reason,
-    )
+    return latest is not None and (
+        latest["status"],
+        latest["actual_value"],
+        latest["reason"],
+    ) == (result.status, result.actual_value, result.reason)
 
 
 def compare_claim(
@@ -216,7 +217,7 @@ def compare_claim(
     return ("match" if abs(claimed - value) <= tolerance else "differs"), value, unit
 
 
-def compare_all_claims(conn: sqlite3.Connection) -> int:
+def compare_all_claims(conn: Connection) -> int:
     claims = conn.execute(
         "SELECT cl.*, k.corp_code, k.metric, k.definition, k.unit AS kpi_unit"
         " FROM company_claims cl JOIN kpi_targets k ON k.id = cl.kpi_target_id"
@@ -228,23 +229,23 @@ def compare_all_claims(conn: sqlite3.Connection) -> int:
             "definition": claim["definition"],
         }
         actuals = conn.execute(
-            "SELECT * FROM actuals WHERE corp_code = ?", (claim["corp_code"],)
+            "SELECT * FROM actuals WHERE corp_code = %s", (claim["corp_code"],)
         ).fetchall()
         comparison, value, unit = compare_claim(claim, kpi, actuals)
         conn.execute(
-            "UPDATE company_claims SET comparison = ?, actual_value = ?, actual_unit = ?"
-            " WHERE id = ?",
+            "UPDATE company_claims SET comparison = %s, actual_value = %s, actual_unit = %s"
+            " WHERE id = %s",
             (comparison, value, unit, claim["id"]),
         )
     return len(claims)
 
 
-def score_all(conn: sqlite3.Connection) -> int:
+def score_all(conn: Connection) -> int:
     """검수에서 제외되지 않은 KPI를 채점해 바뀐 결과만 scores에 쌓는다."""
     scored = 0
     for kpi in conn.execute(KPI_SQL).fetchall():
         actuals = conn.execute(
-            "SELECT * FROM actuals WHERE corp_code = ?", (kpi["corp_code"],)
+            "SELECT * FROM actuals WHERE corp_code = %s", (kpi["corp_code"],)
         ).fetchall()
         result = score_kpi(kpi, int(kpi["disclosed_at"][:4]), actuals)
         if result is None or _is_same_as_latest(conn, kpi["id"], result):
@@ -254,7 +255,7 @@ def score_all(conn: sqlite3.Connection) -> int:
             INSERT INTO scores
                 (kpi_target_id, achievement_rate, elapsed_rate, status, reason, actual_value,
                  actual_unit, actual_period, actual_ids)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             """,
             (
                 kpi["id"],

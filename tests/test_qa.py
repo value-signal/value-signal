@@ -7,7 +7,7 @@ from api.qa import (
     is_grounded,
 )
 from pipeline.config import settings
-from pipeline.db import connect, init_db
+from pipeline.db import connect
 from pipeline.llm import LLMUnavailableError
 
 
@@ -34,10 +34,8 @@ def grounded_response(**overrides):
 
 
 @pytest.fixture
-def conn(tmp_path):
-    db_path = tmp_path / "test.sqlite"
-    init_db(db_path)
-    with connect(db_path) as connection:
+def conn(database):
+    with connect() as connection:
         connection.execute(
             "INSERT INTO companies (corp_code, stock_code, corp_name, market)"
             " VALUES ('c1', '000001', '테스트', 'KOSPI')"
@@ -136,7 +134,7 @@ def test_llm_failure_is_not_cached(conn):
     with pytest.raises(LLMUnavailableError):
         answer_question(conn, FakeLLM(LLMUnavailableError("quota")), "c1", "질문입니다")
 
-    assert conn.execute("SELECT count(*) FROM qa_answers").fetchone()[0] == 0
+    assert conn.execute("SELECT count(*) AS n FROM qa_answers").fetchone()["n"] == 0
 
 
 @pytest.mark.parametrize(

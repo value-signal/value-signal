@@ -1,9 +1,9 @@
 import re
-import sqlite3
 
 import OpenDartReader
 
 from pipeline.config import ROOT_DIR, settings
+from pipeline.db import Connection
 
 RAW_DIR = ROOT_DIR / "data" / "raw"
 PLAN_TITLE = "기업가치제고계획"
@@ -29,13 +29,13 @@ def is_progress_title(report_name: str) -> bool:
 
 
 def register_company(
-    conn: sqlite3.Connection, dart: OpenDartReader, stock_code: str, is_low_pbr: bool
+    conn: Connection, dart: OpenDartReader, stock_code: str, is_low_pbr: bool
 ) -> str:
     company = dart.company(stock_code)
     conn.execute(
         """
         INSERT INTO companies (corp_code, stock_code, corp_name, market, is_low_pbr)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s)
         ON CONFLICT (corp_code) DO UPDATE SET
             corp_name = excluded.corp_name, is_low_pbr = excluded.is_low_pbr
         """,
@@ -51,7 +51,7 @@ def register_company(
 
 
 def _store_latest(
-    conn: sqlite3.Connection,
+    conn: Connection,
     dart: OpenDartReader,
     corp_code: str,
     filings,
@@ -59,7 +59,7 @@ def _store_latest(
 ) -> None:
     latest = filings.sort_values("rcept_no").iloc[-1]
     rcept_no = latest["rcept_no"]
-    if conn.execute("SELECT 1 FROM disclosures WHERE rcept_no = ?", (rcept_no,)).fetchone():
+    if conn.execute("SELECT 1 FROM disclosures WHERE rcept_no = %s", (rcept_no,)).fetchone():
         return
 
     RAW_DIR.mkdir(parents=True, exist_ok=True)
@@ -70,7 +70,7 @@ def _store_latest(
         """
         INSERT INTO disclosures
             (rcept_no, corp_code, report_name, disclosure_type, disclosed_at, source_url, raw_path)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
         (
             rcept_no,
@@ -85,7 +85,7 @@ def _store_latest(
 
 
 def collect_plan_disclosures(
-    conn: sqlite3.Connection, dart: OpenDartReader, corp_code: str
+    conn: Connection, dart: OpenDartReader, corp_code: str
 ) -> None:
     """가장 최근 계획 공시와 이행현황 공시의 원문을 받아 disclosures에 저장한다."""
     filings = dart.list(corp_code, start=SEARCH_START, kind="I", final=False)

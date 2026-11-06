@@ -18,7 +18,7 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_password: str = ""
     alert_from: str = ""
-    db_path: Path = ROOT_DIR / "db" / "value_signal.sqlite"
+    database_url: str = ""
 
 
 settings = Settings()

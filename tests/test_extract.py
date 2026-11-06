@@ -1,7 +1,7 @@
 import pytest
 
 from pipeline.collect.disclosures import is_plan_title
-from pipeline.db import connect, init_db
+from pipeline.db import connect
 from pipeline.extract import chunking
 from pipeline.extract.chunking import MAX_CHUNK_CHARS, html_to_lines, split_lines
 from pipeline.extract.kpi import process_disclosure
@@ -34,12 +34,10 @@ class FakeLLM:
 
 
 @pytest.fixture
-def conn(tmp_path, monkeypatch):
+def conn(database, tmp_path, monkeypatch):
     monkeypatch.setattr(chunking, "ROOT_DIR", tmp_path)
     (tmp_path / "plan.xml").write_text(RAW, encoding="utf-8")
-    db_path = tmp_path / "test.sqlite"
-    init_db(db_path)
-    with connect(db_path) as connection:
+    with connect() as connection:
         connection.execute(
             "INSERT INTO companies (corp_code, stock_code, corp_name, market)"
             " VALUES ('c1', '000001', '테스트', 'KOSDAQ')"
@@ -91,7 +89,7 @@ def test_process_disclosure_saves_verified_kpi(conn):
     process_disclosure(conn, FakeLLM(lambda chunk_id: [make_kpi(chunk_id)]), "r1")
 
     assert saved_metrics(conn) == ["ROE"]
-    assert conn.execute("SELECT review_status FROM kpi_targets").fetchone()[0] == "pending"
+    assert conn.execute("SELECT review_status FROM kpi_targets").fetchone()["review_status"] == "pending"
 
 
 @pytest.mark.parametrize(

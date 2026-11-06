@@ -1,7 +1,4 @@
-import sqlite3
 from collections import Counter, defaultdict
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from functools import lru_cache
 from typing import Annotated
 
@@ -11,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from api.low_pbr import load_low_pbr_list
 from api.qa import QaLimitExceededError, answer_question
-from pipeline.db import connect, init_db
+from pipeline.db import Connection, connect
 from pipeline.llm import LLMClient, LLMUnavailableError, create_llm_client
 
 KPI_SQL = """
@@ -30,12 +27,12 @@ WHERE k.review_status != 'rejected'
 
 EXCLUDED_KPI_SQL = """
 SELECT id, metric, target_min, target_max, unit, deadline, review_note
-FROM kpi_targets WHERE corp_code = ? AND review_status = 'rejected' ORDER BY id
+FROM kpi_targets WHERE corp_code = %s AND review_status = 'rejected' ORDER BY id
 """
 
 LATEST_PLAN_SQL = """
 SELECT report_name, disclosed_at, source_url FROM disclosures
-WHERE corp_code = ? AND disclosure_type = 'plan' ORDER BY rcept_no DESC LIMIT 1
+WHERE corp_code = %s AND disclosure_type = 'plan' ORDER BY rcept_no DESC LIMIT 1
 """
 
 CLAIM_SQL = """
@@ -45,7 +42,7 @@ FROM company_claims cl
 JOIN kpi_targets k ON k.id = cl.kpi_target_id
 JOIN document_chunks c ON c.id = cl.chunk_id
 JOIN disclosures d ON d.rcept_no = c.rcept_no
-WHERE k.corp_code = ?
+WHERE k.corp_code = %s
 ORDER BY cl.comparison = 'differs' DESC, cl.id
 """
 
@@ -67,13 +64,7 @@ def get_qa_llm() -> LLMClient:
     return create_llm_client(max_wait_seconds=5, timeout_seconds=20, max_attempts=1)
 
 
-@asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    init_db()
-    yield
-
-
-app = FastAPI(title="Value Signal API", lifespan=lifespan)
+app = FastAPI(title="Value Signal API")
 
 
 @app.exception_handler(LLMUnavailableError)
@@ -91,7 +82,7 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def latest_plan(conn: sqlite3.Connection, corp_code: str) -> dict | None:
+def latest_plan(conn: Connection, corp_code: str) -> dict | None:
     row = conn.execute(LATEST_PLAN_SQL, (corp_code,)).fetchone()
     return dict(row) if row else None
 
@@ -124,12 +115,12 @@ def list_companies() -> list[dict]:
 def get_scorecard(corp_code: str) -> dict:
     with connect() as conn:
         company = conn.execute(
-            "SELECT * FROM companies WHERE corp_code = ?", (corp_code,)
+            "SELECT * FROM companies WHERE corp_code = %s", (corp_code,)
         ).fetchone()
         if company is None:
             raise HTTPException(status_code=404, detail="기업을 찾을 수 없습니다")
         kpis = conn.execute(
-            f"{KPI_SQL} AND k.corp_code = ? ORDER BY k.category, k.id", (corp_code,)
+            f"{KPI_SQL} AND k.corp_code = %s ORDER BY k.category, k.id", (corp_code,)
         ).fetchall()
         excluded = conn.execute(EXCLUDED_KPI_SQL, (corp_code,)).fetchall()
         claims = conn.execute(CLAIM_SQL, (corp_code,)).fetchall()
@@ -160,7 +151,7 @@ def list_low_pbr() -> list[dict]:
 def ask(payload: Question, llm: Annotated[LLMClient, Depends(get_qa_llm)]) -> dict:
     with connect() as conn:
         company = conn.execute(
-            "SELECT 1 FROM companies WHERE corp_code = ?", (payload.corp_code,)
+            "SELECT 1 FROM companies WHERE corp_code = %s", (payload.corp_code,)
         ).fetchone()
         if company is None:
             raise HTTPException(status_code=404, detail="기업을 찾을 수 없습니다")

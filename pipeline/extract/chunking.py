@@ -1,8 +1,8 @@
-import sqlite3
 
 from bs4 import BeautifulSoup
 
 from pipeline.config import ROOT_DIR
+from pipeline.db import Connection
 
 MAX_CHUNK_CHARS = 1500
 
@@ -30,19 +30,19 @@ def split_lines(lines: list[str]) -> list[str]:
     return chunks
 
 
-def chunk_disclosure(conn: sqlite3.Connection, rcept_no: str) -> None:
+def chunk_disclosure(conn: Connection, rcept_no: str) -> None:
     """공시 원문을 쪼개 document_chunks에 저장한다."""
     if conn.execute(
-        "SELECT 1 FROM document_chunks WHERE rcept_no = ? LIMIT 1", (rcept_no,)
+        "SELECT 1 FROM document_chunks WHERE rcept_no = %s LIMIT 1", (rcept_no,)
     ).fetchone():
         return
 
     row = conn.execute(
-        "SELECT raw_path FROM disclosures WHERE rcept_no = ?", (rcept_no,)
+        "SELECT raw_path FROM disclosures WHERE rcept_no = %s", (rcept_no,)
     ).fetchone()
     raw = (ROOT_DIR / row["raw_path"]).read_text(encoding="utf-8")
-    conn.executemany(
-        "INSERT INTO document_chunks (rcept_no, chunk_index, text) VALUES (?, ?, ?)",
+    conn.cursor().executemany(
+        "INSERT INTO document_chunks (rcept_no, chunk_index, text) VALUES (%s, %s, %s)",
         [
             (rcept_no, index, text)
             for index, text in enumerate(split_lines(html_to_lines(raw)))

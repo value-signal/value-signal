@@ -1,7 +1,9 @@
-import sqlite3
+
+from collections.abc import Mapping
 
 from pydantic import ValidationError
 
+from pipeline.db import Connection
 from pipeline.extract.chunking import chunk_disclosure
 from pipeline.extract.kpi import contains_text, numbers_in
 from pipeline.extract.schema import ClaimExtraction, ClaimExtractionResult
@@ -33,13 +35,13 @@ SYSTEM_PROMPT = """\
 KPI_LIST_SQL = """
 SELECT k.id, k.metric, k.unit FROM kpi_targets k
 JOIN disclosures d ON d.corp_code = k.corp_code
-WHERE d.rcept_no = ? AND k.review_status != 'rejected'
+WHERE d.rcept_no = %s AND k.review_status != 'rejected'
 ORDER BY k.id
 """
 
 
 def extract_claims(
-    llm: LLMClient, kpis: list[sqlite3.Row], chunks: list[sqlite3.Row]
+    llm: LLMClient, kpis: list[Mapping], chunks: list[Mapping]
 ) -> list[ClaimExtraction]:
     """이행현황 공시에서 회사 표현을 뽑는다. 형식이 틀린 항목은 버린다."""
     kpi_list = "\n".join(f"[{kpi['id']}] {kpi['metric']} ({kpi['unit']})" for kpi in kpis)
@@ -66,11 +68,11 @@ def is_claim_verified(claim: ClaimExtraction, chunk_text: str) -> bool:
     )
 
 
-def process_claims(conn: sqlite3.Connection, llm: LLMClient, rcept_no: str) -> None:
+def process_claims(conn: Connection, llm: LLMClient, rcept_no: str) -> None:
     """이행현황 공시 하나의 회사 표현을 추출·검증해 company_claims에 저장한다."""
     chunk_disclosure(conn, rcept_no)
     chunks = conn.execute(
-        "SELECT id, text FROM document_chunks WHERE rcept_no = ? ORDER BY chunk_index",
+        "SELECT id, text FROM document_chunks WHERE rcept_no = %s ORDER BY chunk_index",
         (rcept_no,),
     ).fetchall()
     kpis = conn.execute(KPI_LIST_SQL, (rcept_no,)).fetchall()
@@ -86,11 +88,11 @@ def process_claims(conn: sqlite3.Connection, llm: LLMClient, rcept_no: str) -> N
         and claim.source.chunk_id in texts
         and is_claim_verified(claim, texts[claim.source.chunk_id])
     ]
-    conn.executemany(
+    conn.cursor().executemany(
         """
         INSERT INTO company_claims
             (kpi_target_id, chunk_id, claimed_value, unit, period_year, qualifier, quote)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
         """,
         [
             (

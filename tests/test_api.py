@@ -12,8 +12,7 @@ from pipeline.llm import LLMUnavailableError
 
 
 @pytest.fixture
-def client(tmp_path, monkeypatch):
-    monkeypatch.setattr(settings, "db_path", tmp_path / "test.sqlite")
+def client(database):
     with TestClient(app) as test_client:
         yield test_client
 
@@ -54,12 +53,12 @@ def seed_company(status):
             conn.execute(
                 "INSERT INTO kpi_targets (id, corp_code, chunk_id, category, metric, measure_type,"
                 " target_min, unit, deadline, quote, review_status) VALUES"
-                " (?, 'c1', 1, 'dividend', '배당성향', 'level', 20, '%', '2030-12-31', '원문', ?)",
+                " (%s, 'c1', 1, 'dividend', '배당성향', 'level', 20, '%%', '2030-12-31', '원문', %s)",
                 (kpi_id, review_status),
             )
         if status:
             conn.execute(
-                "INSERT INTO scores (kpi_target_id, status) VALUES (1, 'on_track'), (1, ?)",
+                "INSERT INTO scores (kpi_target_id, status) VALUES (1, 'on_track'), (1, %s)",
                 (status,),
             )
 
