@@ -9,6 +9,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
+from api.low_pbr import load_low_pbr_list
 from api.qa import QaLimitExceededError, answer_question
 from pipeline.db import connect, init_db
 from pipeline.llm import LLMClient, LLMUnavailableError, create_llm_client
@@ -140,6 +141,19 @@ def get_scorecard(corp_code: str) -> dict:
         "excluded": [dict(row) for row in excluded],
         "claims": [dict(row) for row in claims],
     }
+
+
+@app.get("/api/low-pbr")
+def list_low_pbr() -> list[dict]:
+    with connect() as conn:
+        tracked = {
+            row["stock_code"]: row["corp_code"]
+            for row in conn.execute("SELECT stock_code, corp_code FROM companies")
+        }
+    return [
+        {**company, "corp_code": tracked.get(company["stock_code"])}
+        for company in load_low_pbr_list()
+    ]
 
 
 @app.post("/api/qa")

@@ -1,8 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 
-const KIND_URL = 'https://kind.krx.co.kr/'
-
 export function Logo() {
   return (
     <Link className="logo" to="/">
@@ -26,9 +24,7 @@ export function Layout({ actions }: { actions?: ReactNode }) {
               <NavLink to="/" end>
                 기업 찾기
               </NavLink>
-              <a href={KIND_URL} target="_blank" rel="noreferrer">
-                저PBR 명단
-              </a>
+              <NavLink to="/low-pbr">저PBR 명단</NavLink>
               <NavLink to="/method">채점 방법</NavLink>
             </nav>
           )}

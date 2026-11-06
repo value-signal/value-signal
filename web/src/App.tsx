@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { CompanyPage } from './pages/CompanyPage'
 import { HomePage } from './pages/HomePage'
+import { LowPbrPage } from './pages/LowPbrPage'
 import { MethodPage } from './pages/MethodPage'
 
 function App() {
@@ -10,6 +11,7 @@ function App() {
       <Routes>
         <Route element={<Layout />}>
           <Route index element={<HomePage />} />
+          <Route path="low-pbr" element={<LowPbrPage />} />
           <Route path="method" element={<MethodPage />} />
         </Route>
         <Route

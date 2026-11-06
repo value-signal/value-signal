@@ -204,6 +204,11 @@ nav a.active {
   font-size: 14px;
 }
 
+.notice a {
+  flex: none;
+  margin-left: auto;
+}
+
 .notice-date {
   flex: none;
   padding: 2px 10px;
@@ -292,6 +297,7 @@ tr:last-child td {
   border-bottom: 0;
 }
 
+.company-name,
 .company-link {
   display: block;
   color: var(--text);
@@ -561,6 +567,60 @@ dd.value-empty {
   font-size: 12px;
 }
 
+.page-lead {
+  max-width: 720px;
+  margin: 12px 0 24px;
+  color: var(--muted);
+}
+
+.list-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 32px 0 16px;
+}
+
+.list-filters input {
+  flex: 1 1 220px;
+  min-width: 0;
+  padding: 10px 14px;
+  border: 1px solid #d3d7c0;
+  border-radius: 10px;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  font-size: 14px;
+}
+
+.plan-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.plan-pbr_plan {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.plan-general_plan {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.plan-none {
+  color: var(--muted);
+  background: var(--neutral-soft);
+}
+
+.number-cell {
+  font-variant-numeric: tabular-nums;
+}
+
 .section-note {
   margin: -8px 0 16px;
   color: var(--muted);
@@ -747,6 +807,10 @@ dd.value-empty {
     align-items: flex-start;
     flex-direction: column;
     gap: 8px;
+  }
+
+  .notice a {
+    margin-left: 0;
   }
 
   .promise-grid,

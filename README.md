@@ -88,7 +88,7 @@ uv run ruff check .
 | `data/target_companies.csv` | 채점 대상 기업 |
 | `data/kpi_reviews.csv` | 사람이 검수한 KPI 수정·제외 내역. `review` 단계에서 반영 |
 | `data/claim_reviews.csv` | 실적이 아니라고 판단해 제외한 회사 표현 |
-| `data/low_pbr_list.csv` | 2026.11.2 공표 저PBR 151개사 (KIND) |
+| `data/low_pbr_list.csv` | 2026.11.2 공표 저PBR 151개사 (KIND)와 계획 공시 여부 |
 | `data/pbr_plan_filers.csv` | 공시 제목에 PBR 개선 계획이 표시된 62개사 |
 | `evals/gold_kpis.csv` | 추출 정확도 평가용 정답 |
 

@@ -76,6 +76,7 @@ export function HomePage() {
       <aside className="notice">
         <span className="notice-date">2026.11.1</span>
         <p>거래소 저PBR 기업 151개사 첫 공표 · 개선계획을 공시한 34개사는 1년간 공표 면제</p>
+        <Link to="/low-pbr">명단 보기</Link>
       </aside>
 
       <section>

@@ -1,5 +1,6 @@
 import asyncio
 import json
+from collections import Counter
 
 import pytest
 from fastapi.testclient import TestClient
@@ -148,3 +149,27 @@ def test_qa_daily_limit_returns_429(client, override_llm, monkeypatch):
     response = client.post("/api/qa", json={"corp_code": "c1", "question": "질문입니다"})
 
     assert response.status_code == 429
+
+
+def test_low_pbr_list_matches_published_counts(client):
+    companies = client.get("/api/low-pbr").json()
+
+    statuses = Counter(company["plan_status"] for company in companies)
+    markets = Counter(company["market"] for company in companies)
+    assert len(companies) == 151
+    assert markets == {"KOSPI": 96, "KOSDAQ": 55}
+    assert statuses["pbr_plan"] == 15
+    assert [c["pbr"] for c in companies] == sorted(c["pbr"] for c in companies)
+
+
+def test_low_pbr_links_tracked_company(client):
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO companies (corp_code, stock_code, corp_name, market)"
+            " VALUES ('c1', '139480', '이마트', 'KOSPI')"
+        )
+
+    companies = {c["stock_code"]: c for c in client.get("/api/low-pbr").json()}
+
+    assert companies["139480"]["corp_code"] == "c1"
+    assert companies["052300"]["corp_code"] is None

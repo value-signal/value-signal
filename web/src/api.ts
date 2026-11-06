@@ -72,6 +72,19 @@ export type Scorecard = {
   claims: Claim[]
 }
 
+export type LowPbrCompany = {
+  stock_code: string
+  corp_name: string
+  market: Company['market']
+  pbr: number
+  sector: string
+  announced_on: string
+  base_date: string
+  plan_status: 'pbr_plan' | 'general_plan' | 'none'
+  latest_plan_on: string | null
+  corp_code: string | null
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path)
   if (!response.ok) {
@@ -82,6 +95,10 @@ async function getJson<T>(path: string): Promise<T> {
 
 export function fetchCompanies(): Promise<CompanySummary[]> {
   return getJson('/api/companies')
+}
+
+export function fetchLowPbr(): Promise<LowPbrCompany[]> {
+  return getJson('/api/low-pbr')
 }
 
 export function fetchScorecard(corpCode: string): Promise<Scorecard> {
