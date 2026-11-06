@@ -34,7 +34,18 @@ FROM kpi_targets WHERE corp_code = ? AND review_status = 'rejected' ORDER BY id
 
 LATEST_PLAN_SQL = """
 SELECT report_name, disclosed_at, source_url FROM disclosures
-WHERE corp_code = ? ORDER BY rcept_no DESC LIMIT 1
+WHERE corp_code = ? AND disclosure_type = 'plan' ORDER BY rcept_no DESC LIMIT 1
+"""
+
+CLAIM_SQL = """
+SELECT cl.id, k.metric, cl.claimed_value, cl.unit, cl.period_year, cl.qualifier, cl.quote,
+       cl.actual_value, cl.actual_unit, cl.comparison, d.source_url, d.report_name
+FROM company_claims cl
+JOIN kpi_targets k ON k.id = cl.kpi_target_id
+JOIN document_chunks c ON c.id = cl.chunk_id
+JOIN disclosures d ON d.rcept_no = c.rcept_no
+WHERE k.corp_code = ?
+ORDER BY cl.comparison = 'differs' DESC, cl.id
 """
 
 LLM_UNAVAILABLE_MESSAGES = {
@@ -120,12 +131,14 @@ def get_scorecard(corp_code: str) -> dict:
             f"{KPI_SQL} AND k.corp_code = ? ORDER BY k.category, k.id", (corp_code,)
         ).fetchall()
         excluded = conn.execute(EXCLUDED_KPI_SQL, (corp_code,)).fetchall()
+        claims = conn.execute(CLAIM_SQL, (corp_code,)).fetchall()
         plan = latest_plan(conn, corp_code)
     return {
         "company": dict(company),
         "plan": plan,
         "kpis": [dict(row) for row in kpis],
         "excluded": [dict(row) for row in excluded],
+        "claims": [dict(row) for row in claims],
     }
 
 

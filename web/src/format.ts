@@ -1,4 +1,4 @@
-import type { Company, ExcludedKpi, Kpi, Status } from './api'
+import type { Claim, Company, ExcludedKpi, Kpi, Status } from './api'
 
 export const STATUS_ORDER: Status[] = ['achieved', 'on_track', 'delayed', 'unverifiable']
 
@@ -39,6 +39,14 @@ function formatValue(value: number, unit: string): string {
 export function formatActual(kpi: Kpi): string | null {
   if (kpi.actual_value === null || kpi.actual_unit === null) return null
   return formatValue(kpi.actual_value, kpi.actual_unit)
+}
+
+export function formatClaimActual(claim: Claim): string {
+  if (claim.actual_value === null || claim.actual_unit === null) {
+    return '표준 데이터로 비교할 수 없습니다'
+  }
+  const actual = formatValue(claim.actual_value, claim.actual_unit)
+  return claim.comparison === 'match' ? `${actual}, 일치` : `표준 기준 ${actual}`
 }
 
 export function formatTarget(kpi: ExcludedKpi): string {

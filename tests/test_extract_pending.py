@@ -17,7 +17,7 @@ def conn(tmp_path):
         for number in (1, 2, 3):
             connection.execute(
                 "INSERT INTO disclosures (rcept_no, corp_code, report_name, disclosure_type,"
-                " disclosed_at, source_url) VALUES (?, 'c1', '계획', 'I', ?, 'url')",
+                " disclosed_at, source_url) VALUES (?, 'c1', '계획', 'plan', ?, 'url')",
                 (str(number), f"2026-01-0{number}"),
             )
         connection.commit()

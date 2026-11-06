@@ -63,20 +63,27 @@ def extract_kpis(llm: LLMClient, chunks: list[sqlite3.Row]) -> list[KpiExtractio
     return kpis
 
 
-def _normalize(text: str) -> str:
+def normalize_text(text: str) -> str:
     return "".join(text.split())
+
+
+def contains_text(text: str, part: str) -> bool:
+    return normalize_text(part) in normalize_text(text)
+
+
+def numbers_in(text: str) -> set[float]:
+    return {float(n) for n in re.findall(r"\d+(?:\.\d+)?", text.replace(",", ""))}
 
 
 def is_quote_verified(kpi: KpiExtraction, chunk_text: str) -> bool:
     """인용문이 원문에 그대로 있는지 확인한다. 없으면 호출부에서 KPI를 폐기한다."""
-    return _normalize(kpi.source.quote) in _normalize(chunk_text)
+    return contains_text(chunk_text, kpi.source.quote)
 
 
 def is_target_in_quote(kpi: KpiExtraction) -> bool:
     """목표 숫자가 인용문에 실제로 있는지 확인한다."""
-    numbers = {float(n) for n in re.findall(r"\d+(?:\.\d+)?", kpi.source.quote.replace(",", ""))}
     targets = {t for t in (kpi.target_min, kpi.target_max) if t is not None}
-    return targets <= numbers
+    return targets <= numbers_in(kpi.source.quote)
 
 
 def process_disclosure(conn: sqlite3.Connection, llm: LLMClient, rcept_no: str) -> None:
@@ -129,7 +136,9 @@ def process_disclosure(conn: sqlite3.Connection, llm: LLMClient, rcept_no: str) 
 
 
 def extract_pending(
-    conn: sqlite3.Connection, process: Callable[[str], None]
+    conn: sqlite3.Connection,
+    process: Callable[[str], None],
+    disclosure_type: str = "plan",
 ) -> ExtractionSummary:
     """미처리 공시를 차례로 처리한다.
 
@@ -138,7 +147,9 @@ def extract_pending(
     pending = [
         row["rcept_no"]
         for row in conn.execute(
-            "SELECT rcept_no FROM disclosures WHERE extracted_at IS NULL ORDER BY disclosed_at"
+            "SELECT rcept_no FROM disclosures"
+            " WHERE extracted_at IS NULL AND disclosure_type = ? ORDER BY disclosed_at",
+            (disclosure_type,),
         )
     ]
     for done, rcept_no in enumerate(pending):

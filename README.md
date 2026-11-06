@@ -70,12 +70,16 @@ npm run dev
 ## 명령어
 
 ```bash
-uv run python -m pipeline.run <init-db|collect|extract|review|score|alert|all>
+uv run python -m pipeline.run <init-db|collect|extract|review|claims|score|alert|all>
 uv run pytest
 uv run ruff check .
 ```
 
 `alert` 단계는 아직 구현되지 않았습니다.
+
+## 회사 자기평가 비교
+
+`claims` 단계에서 LLM이 이행현황 공시의 실적 표현을 뽑고, `score` 단계에서 코드가 같은 연도 표준 실적과 비교합니다. 차이가 있으면 회사가 밝힌 기준과 함께 보여줍니다. 차이는 기준 차이일 수 있으며 공시 오류를 뜻하지 않습니다.
 
 ## 데이터 파일
 
@@ -83,6 +87,7 @@ uv run ruff check .
 |---|---|
 | `data/target_companies.csv` | 채점 대상 기업 |
 | `data/kpi_reviews.csv` | 사람이 검수한 KPI 수정·제외 내역. `review` 단계에서 반영 |
+| `data/claim_reviews.csv` | 실적이 아니라고 판단해 제외한 회사 표현 |
 | `data/low_pbr_list.csv` | 2026.11.2 공표 저PBR 151개사 (KIND) |
 | `data/pbr_plan_filers.csv` | 공시 제목에 PBR 개선 계획이 표시된 62개사 |
 | `evals/gold_kpis.csv` | 추출 정확도 평가용 정답 |

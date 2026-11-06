@@ -42,3 +42,18 @@ class KpiExtraction(BaseModel):
 
 class KpiExtractionResult(BaseModel):
     kpis: list[KpiExtraction]
+
+
+class ClaimExtraction(BaseModel):
+    """LLM이 이행현황 공시에서 뽑아야 하는 회사 표현 형식."""
+
+    kpi_id: int
+    claimed_value: float
+    unit: str = Field(min_length=1)
+    period_year: int = Field(ge=2020, le=2100)
+    qualifier: str | None = None
+    source: KpiSource
+
+
+class ClaimExtractionResult(BaseModel):
+    claims: list[ClaimExtraction]

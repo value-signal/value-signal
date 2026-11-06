@@ -4,6 +4,7 @@ import sqlite3
 from pipeline.config import ROOT_DIR
 
 REVIEWS_PATH = ROOT_DIR / "data" / "kpi_reviews.csv"
+CLAIM_REVIEWS_PATH = ROOT_DIR / "data" / "claim_reviews.csv"
 
 MATCH_SQL = """
 SELECT k.id FROM kpi_targets k JOIN companies c USING (corp_code)
@@ -46,3 +47,22 @@ def apply_reviews(conn: sqlite3.Connection) -> int:
         )
         applied += 1
     return applied
+
+
+def remove_rejected_claims(conn: sqlite3.Connection) -> int:
+    """사람이 실적이 아니라고 판단한 회사 표현을 지운다. 코드로는 목표와 실적을 구분할 수 없다."""
+    with CLAIM_REVIEWS_PATH.open(encoding="utf-8", newline="") as file:
+        reviews = list(csv.DictReader(file))
+
+    removed = 0
+    for review in reviews:
+        removed += conn.execute(
+            """
+            DELETE FROM company_claims WHERE claimed_value = ? AND kpi_target_id IN (
+                SELECT k.id FROM kpi_targets k JOIN companies c USING (corp_code)
+                WHERE c.stock_code = ? AND k.metric = ?
+            )
+            """,
+            (float(review["claimed_value"]), review["stock_code"], review["metric"]),
+        ).rowcount
+    return removed

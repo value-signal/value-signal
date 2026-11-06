@@ -99,6 +99,21 @@ CREATE TABLE IF NOT EXISTS alerts (
     sent_at    TEXT
 );
 
+-- 회사가 이행현황 공시에 쓴 표현. 비교 결과는 pipeline/scoring만 기록한다.
+CREATE TABLE IF NOT EXISTS company_claims (
+    id             INTEGER PRIMARY KEY,
+    kpi_target_id  INTEGER NOT NULL REFERENCES kpi_targets (id),
+    chunk_id       INTEGER NOT NULL REFERENCES document_chunks (id),
+    claimed_value  REAL NOT NULL,
+    unit           TEXT NOT NULL,
+    period_year    INTEGER NOT NULL,
+    qualifier      TEXT,
+    quote          TEXT NOT NULL,
+    actual_value   REAL,
+    actual_unit    TEXT,
+    comparison     TEXT CHECK (comparison IN ('match', 'differs', 'no_standard'))
+);
+
 -- 같은 질문은 저장된 답을 재사용해 LLM 호출을 아낀다.
 CREATE TABLE IF NOT EXISTS qa_answers (
     cache_key  TEXT PRIMARY KEY,
@@ -111,3 +126,4 @@ CREATE TABLE IF NOT EXISTS qa_answers (
 CREATE INDEX IF NOT EXISTS idx_chunks_rcept ON document_chunks (rcept_no);
 CREATE INDEX IF NOT EXISTS idx_kpi_corp ON kpi_targets (corp_code);
 CREATE INDEX IF NOT EXISTS idx_scores_kpi ON scores (kpi_target_id, evaluated_at);
+CREATE INDEX IF NOT EXISTS idx_claims_kpi ON company_claims (kpi_target_id);

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { type Kpi, type Scorecard, fetchScorecard } from '../api'
+import { ClaimsSection } from '../components/ClaimsSection'
 import { QaPanel } from '../components/QaPanel'
 import { StatusChip } from '../components/StatusChip'
 import {
@@ -86,7 +87,7 @@ export function CompanyPage() {
     )
   }
 
-  const { company, plan, kpis, excluded } = scorecard
+  const { company, plan, kpis, excluded, claims } = scorecard
   const scoredCount = kpis.filter((kpi) => kpi.status).length
   const actualPeriod = kpis.find((kpi) => kpi.actual_period)?.actual_period
 
@@ -160,6 +161,8 @@ export function CompanyPage() {
           </div>
         )}
       </section>
+
+      <ClaimsSection claims={claims} />
 
       <QaPanel key={company.corp_code} corpCode={company.corp_code} />
 

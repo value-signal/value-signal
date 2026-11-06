@@ -11,6 +11,7 @@ Status = Literal["achieved", "on_track", "delayed", "unverifiable"]
 DELAY_THRESHOLD = 0.2
 NON_STANDARD_DEFINITION = re.compile(r"EBITDA|일회성|비경상|조정")
 UNIT_SCALES = {"만주": 10_000}
+MATCH_TOLERANCE = 0.01
 
 KPI_SQL = """
 SELECT k.*, d.disclosed_at
@@ -194,6 +195,48 @@ def _is_same_as_latest(conn: sqlite3.Connection, kpi_id: int, result: ScoreResul
         result.actual_value,
         result.reason,
     )
+
+
+def compare_claim(
+    claim: Mapping, kpi: Mapping, actuals: Sequence[Mapping]
+) -> tuple[str, float | None, str | None]:
+    """회사 표현을 같은 연도 표준 실적과 비교해 (결과, 실적, 단위)를 반환한다."""
+    metric = actual_metric_of(kpi)
+    if metric is None or metric == "dps_growth":
+        return "no_standard", None, None
+
+    period = f"{claim['period_year']}-12-31"
+    resolved = _resolve_actual(metric, actuals, claim["period_year"], 0, False, period)
+    if resolved is None:
+        return "no_standard", None, None
+
+    value, unit, _ = resolved
+    claimed = claim["claimed_value"] * UNIT_SCALES.get(claim["unit"], 1)
+    tolerance = abs(value) * MATCH_TOLERANCE
+    return ("match" if abs(claimed - value) <= tolerance else "differs"), value, unit
+
+
+def compare_all_claims(conn: sqlite3.Connection) -> int:
+    claims = conn.execute(
+        "SELECT cl.*, k.corp_code, k.metric, k.definition, k.unit AS kpi_unit"
+        " FROM company_claims cl JOIN kpi_targets k ON k.id = cl.kpi_target_id"
+    ).fetchall()
+    for claim in claims:
+        kpi = {
+            "metric": claim["metric"],
+            "unit": claim["kpi_unit"],
+            "definition": claim["definition"],
+        }
+        actuals = conn.execute(
+            "SELECT * FROM actuals WHERE corp_code = ?", (claim["corp_code"],)
+        ).fetchall()
+        comparison, value, unit = compare_claim(claim, kpi, actuals)
+        conn.execute(
+            "UPDATE company_claims SET comparison = ?, actual_value = ?, actual_unit = ?"
+            " WHERE id = ?",
+            (comparison, value, unit, claim["id"]),
+        )
+    return len(claims)
 
 
 def score_all(conn: sqlite3.Connection) -> int:

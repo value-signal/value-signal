@@ -49,11 +49,27 @@ export type ExcludedKpi = Pick<
   'id' | 'metric' | 'target_min' | 'target_max' | 'unit' | 'deadline' | 'review_note'
 >
 
+export type Claim = {
+  id: number
+  metric: string
+  claimed_value: number
+  unit: string
+  period_year: number
+  qualifier: string | null
+  quote: string
+  actual_value: number | null
+  actual_unit: string | null
+  comparison: 'match' | 'differs' | 'no_standard'
+  source_url: string
+  report_name: string
+}
+
 export type Scorecard = {
   company: Company
   plan: Plan | null
   kpis: Kpi[]
   excluded: ExcludedKpi[]
+  claims: Claim[]
 }
 
 async function getJson<T>(path: string): Promise<T> {

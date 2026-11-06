@@ -9,10 +9,11 @@ from pipeline.collect.disclosures import (
 )
 from pipeline.config import ROOT_DIR
 from pipeline.db import connect, init_db
+from pipeline.extract.claims import process_claims
 from pipeline.extract.kpi import extract_pending, process_disclosure
-from pipeline.extract.review import apply_reviews
+from pipeline.extract.review import apply_reviews, remove_rejected_claims
 from pipeline.llm import create_llm_client
-from pipeline.scoring.score import score_all
+from pipeline.scoring.score import compare_all_claims, score_all
 
 TARGET_COMPANIES_PATH = ROOT_DIR / "data" / "target_companies.csv"
 
@@ -42,6 +43,19 @@ def extract() -> None:
         print(f"LLM 사용 불가({summary.stopped_by.reason}). 다시 실행하면 이어서 처리합니다.")
 
 
+def claims() -> None:
+    llm = create_llm_client()
+    with connect() as conn:
+        summary = extract_pending(
+            conn, lambda rcept: process_claims(conn, llm, rcept), disclosure_type="progress"
+        )
+        remove_rejected_claims(conn)
+
+    print(f"완료 {summary.done}건, 남음 {summary.remaining}건")
+    if summary.stopped_by:
+        print(f"LLM 사용 불가({summary.stopped_by.reason}). 다시 실행하면 이어서 처리합니다.")
+
+
 def review() -> None:
     with connect() as conn:
         print(f"검수 반영 {apply_reviews(conn)}건")
@@ -49,7 +63,7 @@ def review() -> None:
 
 def score() -> None:
     with connect() as conn:
-        print(f"채점 {score_all(conn)}건")
+        print(f"채점 {score_all(conn)}건, 회사 표현 비교 {compare_all_claims(conn)}건")
 
 
 def alert() -> None:
@@ -61,6 +75,7 @@ STEPS = {
     "collect": collect,
     "extract": extract,
     "review": review,
+    "claims": claims,
     "score": score,
     "alert": alert,
 }
