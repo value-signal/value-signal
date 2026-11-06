@@ -71,3 +71,24 @@ export function fetchCompanies(): Promise<CompanySummary[]> {
 export function fetchScorecard(corpCode: string): Promise<Scorecard> {
   return getJson(`/api/companies/${corpCode}/scorecard`)
 }
+
+export type QaAnswer = {
+  answerable: boolean
+  answer: string
+  sources: { label: string; quote: string | null; url: string }[]
+  cached: boolean
+}
+
+export async function askQuestion(corpCode: string, question: string): Promise<QaAnswer> {
+  const response = await fetch('/api/qa', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ corp_code: corpCode, question }),
+  })
+  if (!response.ok) {
+    const body = await response.json().catch(() => null)
+    const detail = typeof body?.detail === 'string' ? body.detail : null
+    throw new Error(detail ?? `답변을 불러오지 못했습니다 (${response.status})`)
+  }
+  return response.json()
+}

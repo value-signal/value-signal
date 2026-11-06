@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     llm_api_key: str = ""
     llm_model: str = ""
     llm_fallback_model: str = ""
+    qa_daily_limit: int = 15
     smtp_host: str = ""
     smtp_port: int = 587
     smtp_user: str = ""

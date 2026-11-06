@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { type Kpi, type Scorecard, fetchScorecard } from '../api'
+import { QaPanel } from '../components/QaPanel'
 import { StatusChip } from '../components/StatusChip'
 import {
   STATUS_ORDER,
@@ -159,6 +160,8 @@ export function CompanyPage() {
           </div>
         )}
       </section>
+
+      <QaPanel key={company.corp_code} corpCode={company.corp_code} />
 
       {excluded.length > 0 && (
         <section>

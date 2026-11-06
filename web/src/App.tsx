@@ -16,9 +16,9 @@ function App() {
           element={
             <Layout
               actions={
-                <button className="primary-button" disabled title="준비 중입니다">
+                <a className="primary-button" href="#qa">
                   이 기업에 대해 질문하기
-                </button>
+                </a>
               }
             />
           }

@@ -2,13 +2,16 @@ import sqlite3
 from collections import Counter, defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from functools import lru_cache
+from typing import Annotated
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
+from api.qa import QaLimitExceededError, answer_question
 from pipeline.db import connect, init_db
-from pipeline.llm import LLMUnavailableError
+from pipeline.llm import LLMClient, LLMUnavailableError, create_llm_client
 
 KPI_SQL = """
 SELECT k.corp_code, k.id, k.category, k.metric, k.measure_type, k.target_min, k.target_max,
@@ -44,7 +47,12 @@ LLM_UNAVAILABLE_MESSAGES = {
 
 class Question(BaseModel):
     corp_code: str
-    question: str
+    question: str = Field(min_length=2, max_length=300)
+
+
+@lru_cache
+def get_qa_llm() -> LLMClient:
+    return create_llm_client(max_wait_seconds=5, timeout_seconds=20, max_attempts=1)
 
 
 @asynccontextmanager
@@ -121,6 +129,18 @@ def get_scorecard(corp_code: str) -> dict:
     }
 
 
-@app.post("/api/qa", status_code=501)
-def ask(_: Question) -> dict[str, str]:
-    return {"detail": "근거 Q&A는 아직 구현되지 않았습니다"}
+@app.post("/api/qa")
+def ask(payload: Question, llm: Annotated[LLMClient, Depends(get_qa_llm)]) -> dict:
+    with connect() as conn:
+        company = conn.execute(
+            "SELECT 1 FROM companies WHERE corp_code = ?", (payload.corp_code,)
+        ).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail="기업을 찾을 수 없습니다")
+        try:
+            return answer_question(conn, llm, payload.corp_code, payload.question)
+        except QaLimitExceededError as error:
+            raise HTTPException(
+                status_code=429,
+                detail="오늘 사용할 수 있는 질문 횟수를 모두 썼습니다. 내일 다시 시도해 주세요.",
+            ) from error

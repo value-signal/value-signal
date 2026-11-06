@@ -4,7 +4,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from api.main import app, llm_unavailable_handler
+from api.main import app, get_qa_llm, llm_unavailable_handler
 from pipeline.config import settings
 from pipeline.db import connect
 from pipeline.llm import LLMUnavailableError
@@ -83,3 +83,68 @@ def test_scorecard_returns_plan_and_unscored_kpi(client):
     assert scorecard["kpis"][0]["status"] is None
     assert scorecard["kpis"][0]["source_url"] == "url"
     assert [kpi["id"] for kpi in scorecard["excluded"]] == [2]
+
+
+class FakeLLM:
+    def __init__(self, result):
+        self.result = result
+
+    def complete_json(self, system, user, schema):
+        if isinstance(self.result, Exception):
+            raise self.result
+        return self.result
+
+
+@pytest.fixture
+def override_llm():
+    def apply(result):
+        app.dependency_overrides[get_qa_llm] = lambda: FakeLLM(result)
+
+    yield apply
+    app.dependency_overrides.clear()
+
+
+def test_qa_returns_answer_with_source(client, override_llm):
+    seed_company(None)
+    override_llm({"answerable": True, "answer": "배당성향 약속이 있습니다.", "kpi_ids": [1]})
+
+    body = client.post("/api/qa", json={"corp_code": "c1", "question": "약속이 뭔가요?"}).json()
+
+    assert body["answerable"] is True
+    assert body["sources"][0]["url"] == "url"
+
+
+def test_qa_unknown_company_returns_404(client, override_llm):
+    override_llm({})
+
+    response = client.post("/api/qa", json={"corp_code": "none", "question": "질문입니다"})
+
+    assert response.status_code == 404
+
+
+def test_qa_rejects_too_long_question(client, override_llm):
+    override_llm({})
+
+    response = client.post("/api/qa", json={"corp_code": "c1", "question": "가" * 301})
+
+    assert response.status_code == 422
+
+
+def test_qa_reports_llm_outage_as_503(client, override_llm):
+    seed_company(None)
+    override_llm(LLMUnavailableError("quota", 30))
+
+    response = client.post("/api/qa", json={"corp_code": "c1", "question": "질문입니다"})
+
+    assert response.status_code == 503
+    assert response.json()["reason"] == "quota"
+
+
+def test_qa_daily_limit_returns_429(client, override_llm, monkeypatch):
+    seed_company(None)
+    monkeypatch.setattr(settings, "qa_daily_limit", 0)
+    override_llm({})
+
+    response = client.post("/api/qa", json={"corp_code": "c1", "question": "질문입니다"})
+
+    assert response.status_code == 429

@@ -99,6 +99,15 @@ CREATE TABLE IF NOT EXISTS alerts (
     sent_at    TEXT
 );
 
+-- 같은 질문은 저장된 답을 재사용해 LLM 호출을 아낀다.
+CREATE TABLE IF NOT EXISTS qa_answers (
+    cache_key  TEXT PRIMARY KEY,
+    corp_code  TEXT NOT NULL REFERENCES companies (corp_code),
+    question   TEXT NOT NULL,
+    response   TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_chunks_rcept ON document_chunks (rcept_no);
 CREATE INDEX IF NOT EXISTS idx_kpi_corp ON kpi_targets (corp_code);
 CREATE INDEX IF NOT EXISTS idx_scores_kpi ON scores (kpi_target_id, evaluated_at);
