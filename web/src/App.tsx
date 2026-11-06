@@ -1,34 +1,32 @@
-import { useEffect, useState } from 'react'
-import { type Company, fetchCompanies } from './api'
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { Layout } from './components/Layout'
+import { CompanyPage } from './pages/CompanyPage'
+import { HomePage } from './pages/HomePage'
+import { MethodPage } from './pages/MethodPage'
 
 function App() {
-  const [companies, setCompanies] = useState<Company[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchCompanies()
-      .then(setCompanies)
-      .catch((reason: Error) => setError(reason.message))
-  }, [])
-
   return (
-    <main>
-      <h1>Value Signal</h1>
-      <p className="muted">기업의 밸류업 약속과 실제 실적을 비교합니다.</p>
-
-      {error && <p role="alert">{error}</p>}
-      {!error && companies === null && <p className="muted">불러오는 중입니다.</p>}
-      {companies?.length === 0 && <p className="muted">등록된 기업이 없습니다.</p>}
-      {companies && companies.length > 0 && (
-        <ul className="company-list">
-          {companies.map((company) => (
-            <li key={company.corp_code}>
-              {company.corp_name} <span className="muted">{company.market}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </main>
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route index element={<HomePage />} />
+          <Route path="method" element={<MethodPage />} />
+        </Route>
+        <Route
+          element={
+            <Layout
+              actions={
+                <button className="primary-button" disabled title="준비 중입니다">
+                  이 기업에 대해 질문하기
+                </button>
+              }
+            />
+          }
+        >
+          <Route path="companies/:corpCode" element={<CompanyPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   )
 }
 

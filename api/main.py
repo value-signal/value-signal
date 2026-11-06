@@ -1,3 +1,5 @@
+import sqlite3
+from collections import Counter, defaultdict
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -8,17 +10,23 @@ from pydantic import BaseModel
 from pipeline.db import connect, init_db
 from pipeline.llm import LLMUnavailableError
 
-LATEST_SCORECARD_SQL = """
-SELECT k.id, k.category, k.metric, k.target_min, k.target_max, k.unit, k.deadline, k.quote,
+KPI_SQL = """
+SELECT k.corp_code, k.id, k.category, k.metric, k.measure_type, k.target_min, k.target_max,
+       k.unit, k.deadline, k.definition, k.quote, k.review_status, d.source_url,
        s.status, s.achievement_rate, s.elapsed_rate, s.reason, s.evaluated_at
 FROM kpi_targets k
+JOIN document_chunks c ON c.id = k.chunk_id
+JOIN disclosures d ON d.rcept_no = c.rcept_no
 LEFT JOIN scores s ON s.id = (
     SELECT id FROM scores WHERE kpi_target_id = k.id ORDER BY evaluated_at DESC, id DESC LIMIT 1
 )
-WHERE k.corp_code = ? AND k.review_status = 'approved'
-ORDER BY k.category, k.id
+WHERE k.review_status != 'rejected'
 """
 
+LATEST_PLAN_SQL = """
+SELECT report_name, disclosed_at, source_url FROM disclosures
+WHERE corp_code = ? ORDER BY rcept_no DESC LIMIT 1
+"""
 
 LLM_UNAVAILABLE_MESSAGES = {
     "quota": "AI 사용 한도를 초과했습니다. 잠시 후 다시 시도해 주세요.",
@@ -57,11 +65,33 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
+def latest_plan(conn: sqlite3.Connection, corp_code: str) -> dict | None:
+    row = conn.execute(LATEST_PLAN_SQL, (corp_code,)).fetchone()
+    return dict(row) if row else None
+
+
 @app.get("/api/companies")
 def list_companies() -> list[dict]:
     with connect() as conn:
-        rows = conn.execute("SELECT * FROM companies ORDER BY corp_name").fetchall()
-    return [dict(row) for row in rows]
+        companies = conn.execute("SELECT * FROM companies ORDER BY corp_name").fetchall()
+        kpis = conn.execute(KPI_SQL).fetchall()
+        plans = {row["corp_code"]: latest_plan(conn, row["corp_code"]) for row in companies}
+
+    kpis_by_company = defaultdict(list)
+    for kpi in kpis:
+        kpis_by_company[kpi["corp_code"]].append(kpi)
+
+    return [
+        {
+            **dict(company),
+            "kpi_count": len(kpis_by_company[company["corp_code"]]),
+            "status_counts": Counter(
+                kpi["status"] for kpi in kpis_by_company[company["corp_code"]] if kpi["status"]
+            ),
+            "latest_plan": plans[company["corp_code"]],
+        }
+        for company in companies
+    ]
 
 
 @app.get("/api/companies/{corp_code}/scorecard")
@@ -72,8 +102,11 @@ def get_scorecard(corp_code: str) -> dict:
         ).fetchone()
         if company is None:
             raise HTTPException(status_code=404, detail="기업을 찾을 수 없습니다")
-        kpis = conn.execute(LATEST_SCORECARD_SQL, (corp_code,)).fetchall()
-    return {"company": dict(company), "kpis": [dict(row) for row in kpis]}
+        kpis = conn.execute(
+            f"{KPI_SQL} AND k.corp_code = ? ORDER BY k.category, k.id", (corp_code,)
+        ).fetchall()
+        plan = latest_plan(conn, corp_code)
+    return {"company": dict(company), "plan": plan, "kpis": [dict(row) for row in kpis]}
 
 
 @app.post("/api/qa", status_code=501)
