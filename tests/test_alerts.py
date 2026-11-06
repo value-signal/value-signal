@@ -144,10 +144,16 @@ def test_send_email_reports_auth_failure_without_server_message(monkeypatch):
         def __exit__(self, *args):
             return False
 
-        def starttls(self):
+        def starttls(self, context):
             pass
 
-        def login(self, user, password):
+        def ehlo(self):
+            pass
+
+        def auth_plain(self, challenge=None):
+            return ""
+
+        def auth(self, mechanism, authobject):
             raise smtplib.SMTPAuthenticationError(535, b"secret detail")
 
     for name, value in (

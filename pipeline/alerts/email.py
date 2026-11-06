@@ -1,4 +1,5 @@
 import smtplib
+import ssl
 from collections.abc import Callable
 from email.message import EmailMessage
 from email.policy import SMTP
@@ -29,6 +30,17 @@ def build_message(
     return message
 
 
+def _authenticate(smtp: smtplib.SMTP) -> None:
+    """PLAIN으로만 인증한다.
+
+    login()은 거절되면 다른 방식으로 재시도하는데, Gmail이 그때 연결을 끊어 535가 가려진다.
+    """
+    smtp.ehlo()
+    smtp.user = settings.smtp_user
+    smtp.password = settings.smtp_password
+    smtp.auth("PLAIN", smtp.auth_plain)
+
+
 def send_email(to: str, subject: str, body: str, unsubscribe_url: str | None = None) -> None:
     missing = [
         name
@@ -49,9 +61,9 @@ def send_email(to: str, subject: str, body: str, unsubscribe_url: str | None = N
             settings.smtp_host, settings.smtp_port, timeout=SMTP_TIMEOUT_SECONDS
         ) as smtp:
             if settings.smtp_tls:
-                smtp.starttls()
+                smtp.starttls(context=ssl.create_default_context())
             if settings.smtp_user:
-                smtp.login(settings.smtp_user, settings.smtp_password)
+                _authenticate(smtp)
             smtp.send_message(message)
     except smtplib.SMTPResponseException as error:
         # 응답 코드만 남긴다. 메시지에는 계정 정보가 섞일 수 있다.
