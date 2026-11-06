@@ -3,10 +3,12 @@ import ssl
 from collections.abc import Callable
 from email.message import EmailMessage
 from email.policy import SMTP
+from email.utils import formataddr, formatdate, make_msgid, parseaddr
 
 from pipeline.config import settings
 
 SMTP_TIMEOUT_SECONDS = 15
+SENDER_NAME = "Value Signal"
 # 긴 해지 URL이 인코딩되면 메일 앱이 List-Unsubscribe를 인식하지 못한다.
 MAIL_POLICY = SMTP.clone(max_line_length=998)
 
@@ -17,13 +19,23 @@ class EmailError(Exception):
     pass
 
 
+def _sender() -> str:
+    """로그인 계정과 보낸 사람이 다르면 받는 쪽에서 DKIM 인증 실패로 거부한다."""
+    if settings.smtp_user:
+        return formataddr((SENDER_NAME, settings.smtp_user))
+    return settings.alert_from
+
+
 def build_message(
     to: str, subject: str, body: str, unsubscribe_url: str | None = None
 ) -> EmailMessage:
+    sender = _sender()
     message = EmailMessage(policy=MAIL_POLICY)
-    message["From"] = settings.alert_from
+    message["From"] = sender
     message["To"] = to
     message["Subject"] = subject
+    message["Date"] = formatdate(localtime=False)
+    message["Message-ID"] = make_msgid(domain=parseaddr(sender)[1].rpartition("@")[2])
     if unsubscribe_url:
         message["List-Unsubscribe"] = f"<{unsubscribe_url}>"
     message.set_content(body)
@@ -42,16 +54,12 @@ def _authenticate(smtp: smtplib.SMTP) -> None:
 
 
 def send_email(to: str, subject: str, body: str, unsubscribe_url: str | None = None) -> None:
-    missing = [
-        name
-        for name, value in (
-            ("SMTP_HOST", settings.smtp_host),
-            ("SMTP_USER", settings.smtp_user),
-            ("SMTP_PASSWORD", settings.smtp_password),
-            ("ALERT_FROM", settings.alert_from),
-        )
-        if not value and (name != "SMTP_USER" and name != "SMTP_PASSWORD" or settings.smtp_tls)
-    ]
+    required = [("SMTP_HOST", settings.smtp_host)]
+    if settings.smtp_tls:
+        required += [("SMTP_USER", settings.smtp_user), ("SMTP_PASSWORD", settings.smtp_password)]
+    else:
+        required += [("ALERT_FROM", settings.alert_from)]
+    missing = [name for name, value in required if not value]
     if missing:
         raise EmailError(f"메일 설정 없음: {', '.join(missing)}")
 

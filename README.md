@@ -87,7 +87,7 @@ uv run ruff check .
 - 구독은 확인 메일의 링크를 눌러야 시작되고, 모든 알림 메일에 해지 링크가 있습니다.
 - 매일 아침 8시(KST) Vercel Cron이 새 계획·이행현황 공시와 채점 상태 변화를 찾아 하루치를 한 통으로 보냅니다.
 - 확인되지 않은 구독은 하루 뒤 지웁니다.
-- 배포 환경에는 `SMTP_*`, `ALERT_FROM`, `CRON_SECRET`, `DART_API_KEY`를 설정합니다.
+- 배포 환경에는 `SMTP_*`, `CRON_SECRET`, `DART_API_KEY`를 설정합니다. 보낸 사람은 `SMTP_USER`로 고정되며, `ALERT_FROM`은 인증 없는 로컬 시험에서만 씁니다.
 
 ## 데이터 파일
 

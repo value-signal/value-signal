@@ -113,7 +113,8 @@ def test_is_valid_email(email, expected):
     assert is_valid_email(email) is expected
 
 
-def test_unsubscribe_header_stays_readable_and_subject_is_encoded():
+def test_unsubscribe_header_stays_readable_and_subject_is_encoded(monkeypatch):
+    monkeypatch.setattr(settings, "smtp_user", "login@gmail.com")
     url = "https://site.test/subscription?action=unsubscribe&token=" + "a" * 43
 
     raw = build_message("a@b.co", "한글 제목", "본문", url).as_bytes()
@@ -122,10 +123,20 @@ def test_unsubscribe_header_stays_readable_and_subject_is_encoded():
     assert "한글 제목".encode() not in raw
 
 
+def test_sender_is_always_the_login_account(monkeypatch):
+    monkeypatch.setattr(settings, "smtp_user", "login@gmail.com")
+    monkeypatch.setattr(settings, "alert_from", "other@gmail.com")
+
+    message = build_message("a@b.co", "제목", "본문")
+
+    assert message["From"] == "Value Signal <login@gmail.com>"
+    assert message["Message-ID"].endswith("@gmail.com>")
+    assert message["Date"]
+
+
 def test_send_email_names_missing_settings(monkeypatch):
     monkeypatch.setattr(settings, "smtp_tls", True)
     monkeypatch.setattr(settings, "smtp_host", "smtp.test")
-    monkeypatch.setattr(settings, "alert_from", "a@b.co")
     monkeypatch.setattr(settings, "smtp_user", "")
     monkeypatch.setattr(settings, "smtp_password", "")
 
