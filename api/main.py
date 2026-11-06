@@ -2,12 +2,21 @@ from collections import Counter, defaultdict
 from functools import lru_cache
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from api.low_pbr import load_low_pbr_list
 from api.qa import QaLimitExceededError, answer_question
+from api.subscriptions import (
+    SubscriptionLimitError,
+    confirm_subscription,
+    create_subscription,
+    is_valid_email,
+    unsubscribe,
+)
+from pipeline.alerts.email import EmailError, send_email
+from pipeline.alerts.notify import is_cron_authorized, run_daily_alerts
 from pipeline.db import Connection, connect
 from pipeline.llm import LLMClient, LLMUnavailableError, create_llm_client
 
@@ -57,6 +66,15 @@ LLM_UNAVAILABLE_MESSAGES = {
 class Question(BaseModel):
     corp_code: str
     question: str = Field(min_length=2, max_length=300)
+
+
+class SubscriptionRequest(BaseModel):
+    email: str = Field(max_length=254)
+    corp_code: str
+
+
+class TokenRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=100)
 
 
 @lru_cache
@@ -145,6 +163,55 @@ def list_low_pbr() -> list[dict]:
         {**company, "corp_code": tracked.get(company["stock_code"])}
         for company in load_low_pbr_list()
     ]
+
+
+@app.post("/api/subscriptions", status_code=202)
+def subscribe(payload: SubscriptionRequest) -> dict[str, str]:
+    email = payload.email.strip().lower()
+    if not is_valid_email(email):
+        raise HTTPException(status_code=422, detail="이메일 주소를 확인해 주세요")
+
+    with connect() as conn:
+        company = conn.execute(
+            "SELECT 1 FROM companies WHERE corp_code = %s", (payload.corp_code,)
+        ).fetchone()
+        if company is None:
+            raise HTTPException(status_code=404, detail="기업을 찾을 수 없습니다")
+        try:
+            create_subscription(conn, send_email, email, payload.corp_code)
+        except SubscriptionLimitError as error:
+            raise HTTPException(
+                status_code=429, detail="요청이 많습니다. 잠시 후 다시 시도해 주세요."
+            ) from error
+        except EmailError as error:
+            raise HTTPException(
+                status_code=503, detail="메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요."
+            ) from error
+    # 이미 구독 중인지 알려주지 않도록 항상 같은 응답을 준다.
+    return {"detail": "확인 메일을 보냈습니다. 메일의 링크를 누르면 구독이 시작됩니다."}
+
+
+@app.post("/api/subscriptions/confirm")
+def confirm(payload: TokenRequest) -> dict[str, str]:
+    with connect() as conn:
+        if not confirm_subscription(conn, payload.token):
+            raise HTTPException(status_code=404, detail="유효하지 않은 링크입니다")
+    return {"detail": "구독이 시작되었습니다."}
+
+
+@app.post("/api/subscriptions/unsubscribe")
+def cancel(payload: TokenRequest) -> dict[str, str]:
+    with connect() as conn:
+        unsubscribe(conn, payload.token)
+    return {"detail": "구독을 해지했습니다."}
+
+
+@app.get("/api/cron/alerts")
+def daily_alerts(authorization: Annotated[str | None, Header()] = None) -> dict[str, int]:
+    if not is_cron_authorized(authorization):
+        raise HTTPException(status_code=401, detail="인증에 실패했습니다")
+    with connect() as conn:
+        return run_daily_alerts(conn, send_email)
 
 
 @app.post("/api/qa")

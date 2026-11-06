@@ -17,8 +17,19 @@ class Settings(BaseSettings):
     smtp_port: int = 587
     smtp_user: str = ""
     smtp_password: str = ""
+    smtp_tls: bool = True
     alert_from: str = ""
+    alert_daily_limit: int = 100
+    cron_secret: str = ""
+    site_url: str = ""
+    vercel_project_production_url: str = ""
     database_url: str = ""
 
 
 settings = Settings()
+
+
+def public_site_url() -> str:
+    if settings.site_url:
+        return settings.site_url.rstrip("/")
+    return f"https://{settings.vercel_project_production_url}"

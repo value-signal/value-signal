@@ -10,6 +10,7 @@
       "entrypoint": "api.main:app"
     }
   },
+  "crons": [{ "path": "/api/cron/alerts", "schedule": "0 23 * * *" }],
   "rewrites": [
     { "source": "/api/(.*)", "destination": { "service": "api" } },
     { "source": "/(.*)", "destination": { "service": "web" } }

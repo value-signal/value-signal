@@ -1,6 +1,8 @@
 import argparse
 import csv
 
+from pipeline.alerts.email import send_email
+from pipeline.alerts.notify import run_daily_alerts
 from pipeline.collect.actuals import collect_actuals
 from pipeline.collect.disclosures import (
     collect_plan_disclosures,
@@ -67,7 +69,8 @@ def score() -> None:
 
 
 def alert() -> None:
-    raise NotImplementedError("pipeline/alerts 구현 필요")
+    with connect() as conn:
+        print(run_daily_alerts(conn, send_email))
 
 
 STEPS = {

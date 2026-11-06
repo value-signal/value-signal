@@ -1,6 +1,6 @@
 import pytest
 
-from pipeline.collect.disclosures import is_plan_title, is_progress_title
+from pipeline.collect.titles import is_plan_title, is_progress_title
 from pipeline.db import connect
 from pipeline.extract import chunking, review
 from pipeline.extract.claims import process_claims

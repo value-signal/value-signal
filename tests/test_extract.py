@@ -1,6 +1,6 @@
 import pytest
 
-from pipeline.collect.disclosures import is_plan_title
+from pipeline.collect.titles import is_plan_title
 from pipeline.db import connect
 from pipeline.extract import chunking
 from pipeline.extract.chunking import MAX_CHUNK_CHARS, html_to_lines, split_lines

@@ -125,3 +125,29 @@ export async function askQuestion(corpCode: string, question: string): Promise<Q
   }
   return response.json()
 }
+
+async function postJson(path: string, body: object): Promise<{ detail: string }> {
+  const response = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  const result = await response.json().catch(() => null)
+  if (!response.ok) {
+    const detail = typeof result?.detail === 'string' ? result.detail : null
+    throw new Error(detail ?? `요청을 처리하지 못했습니다 (${response.status})`)
+  }
+  return result
+}
+
+export function subscribe(corpCode: string, email: string) {
+  return postJson('/api/subscriptions', { corp_code: corpCode, email })
+}
+
+export function confirmSubscription(token: string) {
+  return postJson('/api/subscriptions/confirm', { token })
+}
+
+export function unsubscribe(token: string) {
+  return postJson('/api/subscriptions/unsubscribe', { token })
+}

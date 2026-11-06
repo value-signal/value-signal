@@ -4,6 +4,7 @@ import { CompanyPage } from './pages/CompanyPage'
 import { HomePage } from './pages/HomePage'
 import { LowPbrPage } from './pages/LowPbrPage'
 import { MethodPage } from './pages/MethodPage'
+import { SubscriptionPage } from './pages/SubscriptionPage'
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
           <Route index element={<HomePage />} />
           <Route path="low-pbr" element={<LowPbrPage />} />
           <Route path="method" element={<MethodPage />} />
+          <Route path="subscription" element={<SubscriptionPage />} />
         </Route>
         <Route
           element={

@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom'
 import { type Kpi, type Scorecard, fetchScorecard } from '../api'
 import { ClaimsSection } from '../components/ClaimsSection'
 import { QaPanel } from '../components/QaPanel'
+import { SubscribeCard } from '../components/SubscribeCard'
 import { StatusChip } from '../components/StatusChip'
 import {
   STATUS_ORDER,
@@ -165,6 +166,12 @@ export function CompanyPage() {
       <ClaimsSection claims={claims} />
 
       <QaPanel key={company.corp_code} corpCode={company.corp_code} />
+
+      <SubscribeCard
+        key={`subscribe-${company.corp_code}`}
+        corpCode={company.corp_code}
+        corpName={companyName(company.corp_name)}
+      />
 
       {excluded.length > 0 && (
         <section>

@@ -682,6 +682,35 @@ dd.value-empty {
   font-weight: 400;
 }
 
+.subscribe-card {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--primary-soft);
+}
+
+.subscribe-card h2 {
+  font-size: 17px;
+}
+
+.subscribe-card p {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.subscribe-card .search {
+  max-width: none;
+  margin-top: 0;
+}
+
+.subscribe-success {
+  color: var(--primary) !important;
+  font-weight: 700;
+}
+
 .qa-panel {
   scroll-margin-top: 16px;
 }

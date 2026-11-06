@@ -84,8 +84,12 @@ CREATE TABLE IF NOT EXISTS scores (
 );
 
 CREATE TABLE IF NOT EXISTS subscriptions (
-    email     TEXT NOT NULL,
-    corp_code TEXT NOT NULL REFERENCES companies (corp_code),
+    email        TEXT NOT NULL,
+    corp_code    TEXT NOT NULL REFERENCES companies (corp_code),
+    token        TEXT NOT NULL UNIQUE,
+    status       TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'active')),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    confirmed_at TIMESTAMPTZ,
     PRIMARY KEY (email, corp_code)
 );
 
@@ -95,8 +99,11 @@ CREATE TABLE IF NOT EXISTS alerts (
     corp_code  TEXT NOT NULL REFERENCES companies (corp_code),
     kind       TEXT NOT NULL CHECK (kind IN ('new_disclosure', 'score_change')),
     message    TEXT NOT NULL,
+    link       TEXT,
+    dedupe_key TEXT NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    sent_at    TIMESTAMPTZ
+    sent_at    TIMESTAMPTZ,
+    UNIQUE (email, dedupe_key)
 );
 
 -- 회사가 이행현황 공시에 쓴 표현. 비교 결과는 pipeline/scoring만 기록한다.

@@ -2,30 +2,18 @@ import re
 
 import OpenDartReader
 
+from pipeline.collect.disclosures_url import viewer_url
+from pipeline.collect.titles import is_plan_title, is_progress_title
 from pipeline.config import ROOT_DIR, settings
 from pipeline.db import Connection
 
 RAW_DIR = ROOT_DIR / "data" / "raw"
-PLAN_TITLE = "기업가치제고계획"
-PROGRESS_TITLE = "이행현황"
-EXCLUDED_TITLES = ("예고", PROGRESS_TITLE)
 SEARCH_START = "2024-01-01"
 MARKETS = {"Y": "KOSPI", "K": "KOSDAQ"}
-VIEWER_URL = "https://dart.fss.or.kr/dsaf001/main.do?rcpNo={rcept_no}"
 
 
 def create_dart() -> OpenDartReader:
     return OpenDartReader(settings.dart_api_key)
-
-
-def is_plan_title(report_name: str) -> bool:
-    title = re.sub(r"\s", "", report_name)
-    return PLAN_TITLE in title and not any(word in title for word in EXCLUDED_TITLES)
-
-
-def is_progress_title(report_name: str) -> bool:
-    title = re.sub(r"\s", "", report_name)
-    return PLAN_TITLE in title and PROGRESS_TITLE in title
 
 
 def register_company(
@@ -78,7 +66,7 @@ def _store_latest(
             re.sub(r"\s+", " ", latest["report_nm"]).strip(),
             disclosure_type,
             latest["rcept_dt"],
-            VIEWER_URL.format(rcept_no=rcept_no),
+            viewer_url(rcept_no),
             str(raw_path.relative_to(ROOT_DIR)),
         ),
     )
