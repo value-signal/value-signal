@@ -1,3 +1,4 @@
+import logging
 from collections import Counter, defaultdict
 from functools import lru_cache
 from typing import Annotated
@@ -81,6 +82,8 @@ class TokenRequest(BaseModel):
 def get_qa_llm() -> LLMClient:
     return create_llm_client(max_wait_seconds=5, timeout_seconds=20, max_attempts=1)
 
+
+logger = logging.getLogger("value_signal")
 
 app = FastAPI(title="Value Signal API")
 
@@ -184,6 +187,7 @@ def subscribe(payload: SubscriptionRequest) -> dict[str, str]:
                 status_code=429, detail="요청이 많습니다. 잠시 후 다시 시도해 주세요."
             ) from error
         except EmailError as error:
+            logger.warning("확인 메일 발송 실패: %s", error)
             raise HTTPException(
                 status_code=503, detail="메일을 보내지 못했습니다. 잠시 후 다시 시도해 주세요."
             ) from error

@@ -1,4 +1,5 @@
 import hmac
+import logging
 from collections.abc import Callable, Mapping
 from datetime import date, timedelta
 from itertools import groupby
@@ -10,6 +11,8 @@ from pipeline.collect.disclosures_url import viewer_url
 from pipeline.collect.titles import is_plan_title, is_progress_title
 from pipeline.config import public_site_url, settings
 from pipeline.db import Connection
+
+logger = logging.getLogger("value_signal")
 
 DART_LIST_URL = "https://opendart.fss.or.kr/api/list.json"
 DART_NO_DATA = "013"
@@ -176,7 +179,8 @@ def send_pending_alerts(conn: Connection, send: SendEmail) -> tuple[int, int]:
                 _digest_body(alerts),
                 f"{public_site_url()}/subscription?action=unsubscribe&token={token}",
             )
-        except EmailError:
+        except EmailError as error:
+            logger.warning("알림 메일 발송 실패: %s", error)
             failed += 1
             continue
         conn.execute(

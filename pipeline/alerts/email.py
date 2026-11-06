@@ -30,8 +30,18 @@ def build_message(
 
 
 def send_email(to: str, subject: str, body: str, unsubscribe_url: str | None = None) -> None:
-    if not settings.smtp_host or not settings.alert_from:
-        raise EmailError("메일 설정이 없습니다")
+    missing = [
+        name
+        for name, value in (
+            ("SMTP_HOST", settings.smtp_host),
+            ("SMTP_USER", settings.smtp_user),
+            ("SMTP_PASSWORD", settings.smtp_password),
+            ("ALERT_FROM", settings.alert_from),
+        )
+        if not value and (name != "SMTP_USER" and name != "SMTP_PASSWORD" or settings.smtp_tls)
+    ]
+    if missing:
+        raise EmailError(f"메일 설정 없음: {', '.join(missing)}")
 
     message = build_message(to, subject, body, unsubscribe_url)
     try:
@@ -43,5 +53,8 @@ def send_email(to: str, subject: str, body: str, unsubscribe_url: str | None = N
             if settings.smtp_user:
                 smtp.login(settings.smtp_user, settings.smtp_password)
             smtp.send_message(message)
+    except smtplib.SMTPResponseException as error:
+        # 응답 코드만 남긴다. 메시지에는 계정 정보가 섞일 수 있다.
+        raise EmailError(f"{type(error).__name__} {error.smtp_code}") from error
     except (OSError, smtplib.SMTPException) as error:
         raise EmailError(type(error).__name__) from error

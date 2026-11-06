@@ -1,3 +1,4 @@
+import smtplib
 from datetime import date, timedelta
 
 import httpx
@@ -14,7 +15,7 @@ from api.subscriptions import (
     unsubscribe,
 )
 from pipeline.alerts import notify
-from pipeline.alerts.email import EmailError, build_message
+from pipeline.alerts.email import EmailError, build_message, send_email
 from pipeline.alerts.notify import (
     detect_new_disclosures,
     detect_score_changes,
@@ -119,6 +120,50 @@ def test_unsubscribe_header_stays_readable_and_subject_is_encoded():
 
     assert f"List-Unsubscribe: <{url}>".encode() in raw
     assert "한글 제목".encode() not in raw
+
+
+def test_send_email_names_missing_settings(monkeypatch):
+    monkeypatch.setattr(settings, "smtp_tls", True)
+    monkeypatch.setattr(settings, "smtp_host", "smtp.test")
+    monkeypatch.setattr(settings, "alert_from", "a@b.co")
+    monkeypatch.setattr(settings, "smtp_user", "")
+    monkeypatch.setattr(settings, "smtp_password", "")
+
+    with pytest.raises(EmailError, match="SMTP_USER, SMTP_PASSWORD"):
+        send_email("a@b.co", "제목", "본문")
+
+
+def test_send_email_reports_auth_failure_without_server_message(monkeypatch):
+    class FailingSmtp:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def starttls(self):
+            pass
+
+        def login(self, user, password):
+            raise smtplib.SMTPAuthenticationError(535, b"secret detail")
+
+    for name, value in (
+        ("smtp_tls", True),
+        ("smtp_host", "smtp.test"),
+        ("smtp_user", "u"),
+        ("smtp_password", "p"),
+        ("alert_from", "a@b.co"),
+    ):
+        monkeypatch.setattr(settings, name, value)
+    monkeypatch.setattr(smtplib, "SMTP", FailingSmtp)
+
+    with pytest.raises(EmailError) as caught:
+        send_email("a@b.co", "제목", "본문")
+
+    assert str(caught.value) == "SMTPAuthenticationError 535"
 
 
 def test_new_subscription_is_pending_and_sends_confirmation(conn):
