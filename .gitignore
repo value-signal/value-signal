@@ -1,0 +1,15 @@
+.env
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+.DS_Store
+
+# 수집 원문과 로컬 DB (구독자 이메일 포함)
+data/raw/*
+!data/raw/.gitkeep
+db/*.sqlite*
+
+node_modules/
+web/dist/
