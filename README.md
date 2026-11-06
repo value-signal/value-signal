@@ -63,9 +63,27 @@ npm run dev
 ## 명령어
 
 ```bash
-uv run python -m pipeline.run <init-db|collect|extract|score|alert|all>
+uv run python -m pipeline.run <init-db|collect|extract|review|score|alert|all>
 uv run pytest
 uv run ruff check .
 ```
 
-`init-db` 외의 배치 단계는 아직 구현되지 않았습니다.
+`alert` 단계와 근거 Q&A는 아직 구현되지 않았습니다.
+
+## 데이터 파일
+
+| 파일 | 내용 |
+|---|---|
+| `data/target_companies.csv` | 채점 대상 기업 |
+| `data/kpi_reviews.csv` | 사람이 검수한 KPI 수정·제외 내역. `review` 단계에서 반영 |
+| `data/low_pbr_list.csv` | 2026.11.2 공표 저PBR 151개사 (KIND) |
+| `data/pbr_plan_filers.csv` | 공시 제목에 PBR 개선 계획이 표시된 62개사 |
+| `evals/gold_kpis.csv` | 추출 정확도 평가용 정답 |
+
+`on_low_pbr_list`가 0인 기업에는 공표 면제 34개사가 포함될 수 있지만, 면제 명단은 공개되지 않아 구분할 수 없습니다.
+
+## 채점 규칙
+
+- 목표를 넘으면 `달성`, 달성률이 기간 경과율보다 20%p 이상 뒤처지거나 기한까지 미달이면 `주의`, 그 외는 `진행 중`입니다.
+- 회사 기준이 표준 지표와 다르거나 계산할 수 없으면 `확인 불가`입니다. 지난해 값을 대신 쓰지 않습니다.
+- 주주환원율은 `(현금배당 총액 + 자기주식 취득액) / 지배주주 순이익`이며, 회사 정의와 다를 수 있습니다.

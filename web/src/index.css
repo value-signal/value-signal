@@ -382,6 +382,18 @@ tr:last-child td {
   letter-spacing: -0.02em;
 }
 
+.low-pbr-tag {
+  margin-left: 10px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: var(--primary);
+  background: var(--primary-soft);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0;
+  vertical-align: middle;
+}
+
 .company-header p {
   margin-top: 6px;
   font-size: 14px;

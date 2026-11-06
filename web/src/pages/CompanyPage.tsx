@@ -7,12 +7,14 @@ import {
   companyName,
   deadlineYear,
   displayQuote,
+  formatActual,
   formatDay,
   formatTarget,
 } from '../format'
 
 function PromiseCard({ kpi }: { kpi: Kpi }) {
   const rate = kpi.achievement_rate
+  const actual = formatActual(kpi)
   return (
     <article className={`promise-card ${kpi.status === 'delayed' ? 'promise-card-alert' : ''}`}>
       <div className="promise-title">
@@ -26,21 +28,23 @@ function PromiseCard({ kpi }: { kpi: Kpi }) {
           <dd>{formatTarget(kpi)}</dd>
         </div>
         <div>
-          <dt>달성률</dt>
-          <dd className={rate === null ? 'value-empty' : `value-${kpi.status}`}>
-            {rate === null ? '집계 전' : `${Math.round(rate * 100)}%`}
-          </dd>
+          <dt>실적{kpi.actual_period && ` · ${kpi.actual_period}`}</dt>
+          <dd className={actual ? `value-${kpi.status}` : 'value-empty'}>{actual ?? '-'}</dd>
         </div>
       </dl>
       {rate !== null && (
-        <div className="bar" aria-hidden="true">
-          <span
-            className={`bar-fill bar-${kpi.status}`}
-            style={{ width: `${Math.min(Math.max(rate, 0), 1) * 100}%` }}
-          />
-        </div>
+        <>
+          <div className="bar" aria-hidden="true">
+            <span
+              className={`bar-fill bar-${kpi.status}`}
+              style={{ width: `${Math.min(Math.max(rate, 0), 1) * 100}%` }}
+            />
+          </div>
+          <p className="promise-note">목표의 {Math.round(rate * 100)}%</p>
+        </>
       )}
       {kpi.reason && <p className="promise-note">{kpi.reason}</p>}
+      {kpi.review_note && !kpi.reason && <p className="promise-note">{kpi.review_note}</p>}
       {kpi.definition && <p className="promise-note">기준: {kpi.definition}</p>}
       <div className="promise-footer">
         <a href={kpi.source_url} target="_blank" rel="noreferrer">
@@ -81,8 +85,9 @@ export function CompanyPage() {
     )
   }
 
-  const { company, plan, kpis } = scorecard
+  const { company, plan, kpis, excluded } = scorecard
   const scoredCount = kpis.filter((kpi) => kpi.status).length
+  const actualPeriod = kpis.find((kpi) => kpi.actual_period)?.actual_period
 
   return (
     <main className="page">
@@ -91,7 +96,10 @@ export function CompanyPage() {
       </Link>
       <div className="company-header">
         <div>
-          <h1>{companyName(company.corp_name)}</h1>
+          <h1>
+            {companyName(company.corp_name)}
+            {company.is_low_pbr === 1 && <span className="low-pbr-tag">저PBR 명단</span>}
+          </h1>
           {plan && (
             <p className="muted">
               기준 계획: {plan.report_name} · {formatDay(plan.disclosed_at)} 공시 ·{' '}
@@ -131,7 +139,7 @@ export function CompanyPage() {
         </div>
         <div className="stat-card">
           <span>실적 기준</span>
-          <strong>{scoredCount > 0 ? 'DART 공시' : '수집 전'}</strong>
+          <strong>{actualPeriod ? `${actualPeriod} 사업연도` : '수집 전'}</strong>
           <small>DART 정기보고서 · 배당 · 자사주</small>
         </div>
       </section>
@@ -151,6 +159,34 @@ export function CompanyPage() {
           </div>
         )}
       </section>
+
+      {excluded.length > 0 && (
+        <section>
+          <h2 className="section-title">채점 제외 약속 {excluded.length}개</h2>
+          <div className="table-card">
+            <table>
+              <thead>
+                <tr>
+                  <th>약속</th>
+                  <th>목표</th>
+                  <th>기한</th>
+                  <th>사유</th>
+                </tr>
+              </thead>
+              <tbody>
+                {excluded.map((kpi) => (
+                  <tr key={kpi.id}>
+                    <td>{kpi.metric}</td>
+                    <td>{formatTarget(kpi)}</td>
+                    <td>{deadlineYear(kpi.deadline)}</td>
+                    <td className="muted">{kpi.review_note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </main>
   )
 }

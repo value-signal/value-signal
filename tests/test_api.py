@@ -82,3 +82,4 @@ def test_scorecard_returns_plan_and_unscored_kpi(client):
     assert [kpi["id"] for kpi in scorecard["kpis"]] == [1]
     assert scorecard["kpis"][0]["status"] is None
     assert scorecard["kpis"][0]["source_url"] == "url"
+    assert [kpi["id"] for kpi in scorecard["excluded"]] == [2]

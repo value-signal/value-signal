@@ -13,7 +13,7 @@ type Props = {
 }
 
 export function StatusChip({ status, count }: Props) {
-  const label = status ? STATUS_LABELS[status] : '실적 수집 중'
+  const label = status ? STATUS_LABELS[status] : '실적 대기'
   return (
     <span className={`chip chip-${status ?? 'waiting'}`}>
       {label}

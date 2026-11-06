@@ -12,8 +12,9 @@ from pipeline.llm import LLMUnavailableError
 
 KPI_SQL = """
 SELECT k.corp_code, k.id, k.category, k.metric, k.measure_type, k.target_min, k.target_max,
-       k.unit, k.deadline, k.definition, k.quote, k.review_status, d.source_url,
-       s.status, s.achievement_rate, s.elapsed_rate, s.reason, s.evaluated_at
+       k.unit, k.deadline, k.definition, k.quote, k.review_status, k.review_note, d.source_url,
+       s.status, s.achievement_rate, s.elapsed_rate, s.reason, s.evaluated_at,
+       s.actual_value, s.actual_unit, s.actual_period
 FROM kpi_targets k
 JOIN document_chunks c ON c.id = k.chunk_id
 JOIN disclosures d ON d.rcept_no = c.rcept_no
@@ -21,6 +22,11 @@ LEFT JOIN scores s ON s.id = (
     SELECT id FROM scores WHERE kpi_target_id = k.id ORDER BY evaluated_at DESC, id DESC LIMIT 1
 )
 WHERE k.review_status != 'rejected'
+"""
+
+EXCLUDED_KPI_SQL = """
+SELECT id, metric, target_min, target_max, unit, deadline, review_note
+FROM kpi_targets WHERE corp_code = ? AND review_status = 'rejected' ORDER BY id
 """
 
 LATEST_PLAN_SQL = """
@@ -105,8 +111,14 @@ def get_scorecard(corp_code: str) -> dict:
         kpis = conn.execute(
             f"{KPI_SQL} AND k.corp_code = ? ORDER BY k.category, k.id", (corp_code,)
         ).fetchall()
+        excluded = conn.execute(EXCLUDED_KPI_SQL, (corp_code,)).fetchall()
         plan = latest_plan(conn, corp_code)
-    return {"company": dict(company), "plan": plan, "kpis": [dict(row) for row in kpis]}
+    return {
+        "company": dict(company),
+        "plan": plan,
+        "kpis": [dict(row) for row in kpis],
+        "excluded": [dict(row) for row in excluded],
+    }
 
 
 @app.post("/api/qa", status_code=501)

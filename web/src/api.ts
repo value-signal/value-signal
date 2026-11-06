@@ -11,7 +11,7 @@ export type Company = {
   stock_code: string
   corp_name: string
   market: 'KOSPI' | 'KOSDAQ'
-  is_exempt: 0 | 1
+  is_low_pbr: 0 | 1
 }
 
 export type CompanySummary = Company & {
@@ -32,18 +32,28 @@ export type Kpi = {
   definition: string | null
   quote: string
   review_status: 'pending' | 'approved'
+  review_note: string | null
   source_url: string
   status: Status | null
   achievement_rate: number | null
   elapsed_rate: number | null
   reason: string | null
   evaluated_at: string | null
+  actual_value: number | null
+  actual_unit: string | null
+  actual_period: string | null
 }
+
+export type ExcludedKpi = Pick<
+  Kpi,
+  'id' | 'metric' | 'target_min' | 'target_max' | 'unit' | 'deadline' | 'review_note'
+>
 
 export type Scorecard = {
   company: Company
   plan: Plan | null
   kpis: Kpi[]
+  excluded: ExcludedKpi[]
 }
 
 async function getJson<T>(path: string): Promise<T> {

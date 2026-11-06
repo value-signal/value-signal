@@ -23,22 +23,22 @@ def is_plan_title(report_name: str) -> bool:
 
 
 def register_company(
-    conn: sqlite3.Connection, dart: OpenDartReader, stock_code: str, is_exempt: bool
+    conn: sqlite3.Connection, dart: OpenDartReader, stock_code: str, is_low_pbr: bool
 ) -> str:
     company = dart.company(stock_code)
     conn.execute(
         """
-        INSERT INTO companies (corp_code, stock_code, corp_name, market, is_exempt)
+        INSERT INTO companies (corp_code, stock_code, corp_name, market, is_low_pbr)
         VALUES (?, ?, ?, ?, ?)
         ON CONFLICT (corp_code) DO UPDATE SET
-            corp_name = excluded.corp_name, is_exempt = excluded.is_exempt
+            corp_name = excluded.corp_name, is_low_pbr = excluded.is_low_pbr
         """,
         (
             company["corp_code"],
             stock_code,
             company["corp_name"],
             MARKETS[company["corp_cls"]],
-            int(is_exempt),
+            int(is_low_pbr),
         ),
     )
     return company["corp_code"]

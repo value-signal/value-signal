@@ -1,4 +1,4 @@
-import type { Company, Kpi, Status } from './api'
+import type { Company, ExcludedKpi, Kpi, Status } from './api'
 
 export const STATUS_ORDER: Status[] = ['achieved', 'on_track', 'delayed', 'unverifiable']
 
@@ -24,7 +24,7 @@ export function formatDay(compactDate: string): string {
 }
 
 export function displayQuote(quote: string): string {
-  return quote.replace(/^[-○●\s]+/, '')
+  return quote.replace(/^[-*→○●ㅇ\s]+/, '')
 }
 
 export function deadlineYear(deadline: string): string {
@@ -32,11 +32,16 @@ export function deadlineYear(deadline: string): string {
 }
 
 function formatValue(value: number, unit: string): string {
-  const number = value.toLocaleString('ko-KR')
-  return unit === '%' ? `${number}%` : `${number}${unit}`
+  const number = value.toLocaleString('ko-KR', { maximumFractionDigits: 2 })
+  return `${number}${unit}`
 }
 
-export function formatTarget(kpi: Kpi): string {
+export function formatActual(kpi: Kpi): string | null {
+  if (kpi.actual_value === null || kpi.actual_unit === null) return null
+  return formatValue(kpi.actual_value, kpi.actual_unit)
+}
+
+export function formatTarget(kpi: ExcludedKpi): string {
   const { target_min: min, target_max: max, unit } = kpi
   if (min !== null && max !== null) {
     if (min === max) return formatValue(min, unit)

@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS companies (
     stock_code TEXT NOT NULL UNIQUE,
     corp_name  TEXT NOT NULL,
     market     TEXT NOT NULL CHECK (market IN ('KOSPI', 'KOSDAQ')),
-    is_exempt  INTEGER NOT NULL DEFAULT 0 CHECK (is_exempt IN (0, 1))
+    is_low_pbr  INTEGER NOT NULL DEFAULT 0 CHECK (is_low_pbr IN (0, 1))
 );
 
 CREATE TABLE IF NOT EXISTS disclosures (
@@ -47,6 +47,9 @@ CREATE TABLE IF NOT EXISTS kpi_targets (
     baseline_period TEXT,
     definition      TEXT,
     quote           TEXT NOT NULL,
+    start_year      INTEGER,
+    unscorable_reason TEXT,
+    review_note     TEXT,
     review_status   TEXT NOT NULL DEFAULT 'pending'
                     CHECK (review_status IN ('pending', 'approved', 'rejected')),
     created_at      TEXT NOT NULL DEFAULT (datetime('now')),
@@ -73,6 +76,9 @@ CREATE TABLE IF NOT EXISTS scores (
     status           TEXT NOT NULL
                      CHECK (status IN ('achieved', 'on_track', 'delayed', 'unverifiable')),
     reason           TEXT,
+    actual_value     REAL,
+    actual_unit      TEXT,
+    actual_period    TEXT,
     actual_ids       TEXT NOT NULL DEFAULT '[]',
     evaluated_at     TEXT NOT NULL DEFAULT (datetime('now'))
 );

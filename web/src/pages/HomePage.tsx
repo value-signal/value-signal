@@ -65,7 +65,7 @@ export function HomePage() {
         <form className="search" role="search" onSubmit={handleSearch}>
           <input
             aria-label="기업명 검색"
-            placeholder="기업명을 입력하세요 (예: 농심)"
+            placeholder="기업명을 입력하세요 (예: 이마트)"
             value={input}
             onChange={(event) => setInput(event.target.value)}
           />
@@ -128,7 +128,10 @@ export function HomePage() {
                       <Link className="company-link" to={`/companies/${company.corp_code}`}>
                         {companyName(company.corp_name)}
                       </Link>
-                      <span className="subtle">{marketLabel(company.market)}</span>
+                      <span className="subtle">
+                        {marketLabel(company.market)}
+                        {company.is_low_pbr === 1 && ' · 저PBR 명단'}
+                      </span>
                     </td>
                     <td>{company.kpi_count}</td>
                     <td>
