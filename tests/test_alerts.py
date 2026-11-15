@@ -486,12 +486,13 @@ def test_api_rejects_unknown_confirm_token(client):
 def test_api_cron_requires_secret(client, monkeypatch):
     monkeypatch.setattr(settings, "cron_secret", "s3cret")
     monkeypatch.setattr(api.main, "run_daily_alerts", lambda conn, send: {"sent": 0})
+    monkeypatch.setattr(api.main, "collect_news_safely", lambda conn: 2)
 
     assert client.get("/api/cron/alerts").status_code == 401
     wrong = {"Authorization": "Bearer wrong"}
     assert client.get("/api/cron/alerts", headers=wrong).status_code == 401
     right = {"Authorization": "Bearer s3cret"}
-    assert client.get("/api/cron/alerts", headers=right).json() == {"sent": 0}
+    assert client.get("/api/cron/alerts", headers=right).json() == {"sent": 0, "news": 2}
 
 
 def test_notify_module_has_no_dart_package_dependency():

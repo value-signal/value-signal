@@ -1,6 +1,7 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { type CompanySummary, fetchCompanies } from '../api'
+import { NewsSlider } from '../components/NewsSlider'
 import { StatusChip } from '../components/StatusChip'
 import { STATUS_ORDER, companyName, formatMonth, marketLabel } from '../format'
 
@@ -73,11 +74,7 @@ export function HomePage() {
         </form>
       </section>
 
-      <aside className="notice">
-        <span className="notice-date">2026.11.1</span>
-        <p>거래소 저PBR 기업 151개사 첫 공표 · 개선계획을 공시한 34개사는 1년간 공표 면제</p>
-        <Link to="/low-pbr">명단 보기</Link>
-      </aside>
+      <NewsSlider />
 
       <section>
         <div className="section-header">

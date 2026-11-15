@@ -130,7 +130,18 @@ CREATE TABLE IF NOT EXISTS qa_answers (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 메인 슬라이드용 기사. 제목과 링크만 저장한다.
+CREATE TABLE IF NOT EXISTS news (
+    url          TEXT PRIMARY KEY,
+    title        TEXT NOT NULL UNIQUE,
+    source       TEXT NOT NULL,
+    published_at TIMESTAMPTZ NOT NULL,
+    corp_code    TEXT REFERENCES companies (corp_code),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX IF NOT EXISTS idx_chunks_rcept ON document_chunks (rcept_no);
 CREATE INDEX IF NOT EXISTS idx_kpi_corp ON kpi_targets (corp_code);
 CREATE INDEX IF NOT EXISTS idx_scores_kpi ON scores (kpi_target_id, evaluated_at);
 CREATE INDEX IF NOT EXISTS idx_claims_kpi ON company_claims (kpi_target_id);
+CREATE INDEX IF NOT EXISTS idx_news_published ON news (published_at DESC);

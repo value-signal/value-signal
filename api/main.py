@@ -18,6 +18,7 @@ from api.subscriptions import (
 )
 from pipeline.alerts.email import EmailError, send_email
 from pipeline.alerts.notify import is_cron_authorized, run_daily_alerts
+from pipeline.collect.news import collect_news_safely
 from pipeline.db import Connection, connect
 from pipeline.llm import LLMClient, LLMUnavailableError, create_llm_client
 
@@ -62,6 +63,13 @@ SELECT DISTINCT ON (corp_code) corp_code, report_name, disclosed_at, source_url
 FROM disclosures WHERE disclosure_type = 'plan'
 ORDER BY corp_code, rcept_no DESC
 """
+
+NEWS_SQL = """
+SELECT n.url, n.title, n.source, n.published_at, n.corp_code, c.corp_name
+FROM news n LEFT JOIN companies c ON c.corp_code = n.corp_code
+ORDER BY n.published_at DESC LIMIT %s
+"""
+NEWS_LIMIT = 10
 
 CLAIM_SQL = """
 SELECT cl.id, k.metric, cl.claimed_value, cl.unit, cl.period_year, cl.qualifier, cl.quote,
@@ -190,6 +198,12 @@ def list_low_pbr() -> list[dict]:
     ]
 
 
+@app.get("/api/news")
+def list_news() -> list[dict]:
+    with connect() as conn:
+        return conn.execute(NEWS_SQL, (NEWS_LIMIT,)).fetchall()
+
+
 @app.post("/api/subscriptions", status_code=202)
 def subscribe(payload: SubscriptionRequest) -> dict[str, str]:
     email = payload.email.strip().lower()
@@ -237,7 +251,9 @@ def daily_alerts(authorization: Annotated[str | None, Header()] = None) -> dict[
     if not is_cron_authorized(authorization):
         raise HTTPException(status_code=401, detail="인증에 실패했습니다")
     with connect() as conn:
-        return run_daily_alerts(conn, send_email)
+        # 뉴스는 메일과 상관없으므로 먼저 모으고, 실패해도 알림은 보낸다.
+        news = collect_news_safely(conn)
+        return {**run_daily_alerts(conn, send_email), "news": news}
 
 
 @app.post("/api/qa")

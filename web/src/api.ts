@@ -85,6 +85,15 @@ export type LowPbrCompany = {
   corp_code: string | null
 }
 
+export type NewsItem = {
+  url: string
+  title: string
+  source: string
+  published_at: string
+  corp_code: string | null
+  corp_name: string | null
+}
+
 async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path)
   if (!response.ok) {
@@ -95,6 +104,10 @@ async function getJson<T>(path: string): Promise<T> {
 
 export function fetchCompanies(): Promise<CompanySummary[]> {
   return getJson('/api/companies')
+}
+
+export function fetchNews(): Promise<NewsItem[]> {
+  return getJson('/api/news')
 }
 
 export function fetchLowPbr(): Promise<LowPbrCompany[]> {

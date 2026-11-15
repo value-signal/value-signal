@@ -9,6 +9,7 @@ from pipeline.collect.disclosures import (
     create_dart,
     register_company,
 )
+from pipeline.collect.news import collect_news
 from pipeline.config import ROOT_DIR
 from pipeline.db import connect, init_db
 from pipeline.extract.claims import process_claims
@@ -73,6 +74,11 @@ def alert() -> None:
         print(run_daily_alerts(conn, send_email))
 
 
+def news() -> None:
+    with connect() as conn:
+        print(f"새 기사 {collect_news(conn)}건")
+
+
 STEPS = {
     "init-db": init_db,
     "collect": collect,
@@ -81,6 +87,7 @@ STEPS = {
     "claims": claims,
     "score": score,
     "alert": alert,
+    "news": news,
 }
 
 
