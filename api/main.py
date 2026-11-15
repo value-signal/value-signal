@@ -45,6 +45,24 @@ SELECT report_name, disclosed_at, source_url FROM disclosures
 WHERE corp_code = %s AND disclosure_type = 'plan' ORDER BY rcept_no DESC LIMIT 1
 """
 
+KPI_STATUS_COUNT_SQL = """
+WITH latest AS (
+    SELECT DISTINCT ON (kpi_target_id) kpi_target_id, status FROM scores
+    ORDER BY kpi_target_id, evaluated_at DESC, id DESC
+)
+SELECT k.corp_code, l.status, COUNT(*) AS n
+FROM kpi_targets k
+LEFT JOIN latest l ON l.kpi_target_id = k.id
+WHERE k.review_status != 'rejected'
+GROUP BY k.corp_code, l.status
+"""
+
+LATEST_PLANS_SQL = """
+SELECT DISTINCT ON (corp_code) corp_code, report_name, disclosed_at, source_url
+FROM disclosures WHERE disclosure_type = 'plan'
+ORDER BY corp_code, rcept_no DESC
+"""
+
 CLAIM_SQL = """
 SELECT cl.id, k.metric, cl.claimed_value, cl.unit, cl.period_year, cl.qualifier, cl.quote,
        cl.actual_value, cl.actual_unit, cl.comparison, d.source_url, d.report_name
@@ -110,23 +128,27 @@ def latest_plan(conn: Connection, corp_code: str) -> dict | None:
 
 @app.get("/api/companies")
 def list_companies() -> list[dict]:
+    # 기업 수와 상관없이 쿼리 3번으로 끝낸다. 기업마다 따로 조회하면 원격 DB 왕복이 누적된다.
     with connect() as conn:
         companies = conn.execute("SELECT * FROM companies ORDER BY corp_name").fetchall()
-        kpis = conn.execute(KPI_SQL).fetchall()
-        plans = {row["corp_code"]: latest_plan(conn, row["corp_code"]) for row in companies}
+        status_rows = conn.execute(KPI_STATUS_COUNT_SQL).fetchall()
+        plans = {
+            row.pop("corp_code"): row for row in conn.execute(LATEST_PLANS_SQL).fetchall()
+        }
 
-    kpis_by_company = defaultdict(list)
-    for kpi in kpis:
-        kpis_by_company[kpi["corp_code"]].append(kpi)
+    kpi_counts: Counter[str] = Counter()
+    status_counts: defaultdict[str, Counter[str]] = defaultdict(Counter)
+    for row in status_rows:
+        kpi_counts[row["corp_code"]] += row["n"]
+        if row["status"]:
+            status_counts[row["corp_code"]][row["status"]] += row["n"]
 
     return [
         {
             **dict(company),
-            "kpi_count": len(kpis_by_company[company["corp_code"]]),
-            "status_counts": Counter(
-                kpi["status"] for kpi in kpis_by_company[company["corp_code"]] if kpi["status"]
-            ),
-            "latest_plan": plans[company["corp_code"]],
+            "kpi_count": kpi_counts[company["corp_code"]],
+            "status_counts": status_counts[company["corp_code"]],
+            "latest_plan": plans.get(company["corp_code"]),
         }
         for company in companies
     ]
