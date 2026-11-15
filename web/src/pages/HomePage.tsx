@@ -117,7 +117,7 @@ export function HomePage() {
               <thead>
                 <tr>
                   <th>기업</th>
-                  <th>약속 수</th>
+                  <th>제시한 목표</th>
                   <th>이행 현황</th>
                   <th>최근 계획 공시</th>
                 </tr>
@@ -134,7 +134,7 @@ export function HomePage() {
                         {company.is_low_pbr === 1 && ' · 저PBR 명단'}
                       </span>
                     </td>
-                    <td>{company.kpi_count}</td>
+                    <td>{company.kpi_count}개</td>
                     <td>
                       <ProgressCell company={company} />
                     </td>
