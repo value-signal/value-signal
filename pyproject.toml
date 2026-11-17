@@ -1,7 +1,7 @@
 [project]
 name = "value-signal"
 version = "0.1.0"
-description = "기업의 밸류업 약속을 AI가 숫자로 읽고 DART 실적으로 채점하는 서비스"
+description = "기업의 밸류업 목표를 AI가 숫자로 읽고 DART 실적으로 채점하는 서비스"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi",

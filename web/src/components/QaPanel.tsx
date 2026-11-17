@@ -2,9 +2,9 @@ import { type FormEvent, useState } from 'react'
 import { type QaAnswer, askQuestion } from '../api'
 
 const PRESET_QUESTIONS = [
-  '약속한 주주환원을 지키고 있나요?',
-  '뒤처지고 있는 약속이 있나요?',
-  '확인할 수 없는 약속은 무엇인가요?',
+  '주주환원 목표를 지키고 있나요?',
+  '뒤처지고 있는 목표가 있나요?',
+  '확인할 수 없는 목표는 무엇인가요?',
 ]
 
 export function QaPanel({ corpCode }: { corpCode: string }) {
@@ -50,7 +50,7 @@ export function QaPanel({ corpCode }: { corpCode: string }) {
           <input
             aria-label="질문 입력"
             maxLength={300}
-            placeholder="이 기업의 약속과 실적에 대해 물어보세요"
+            placeholder="이 기업의 목표와 실적에 대해 물어보세요"
             value={input}
             onChange={(event) => setInput(event.target.value)}
           />

@@ -55,7 +55,7 @@ def create_subscription(
     send(
         email,
         f"[Value Signal] {company['corp_name']} 알림 구독을 확인해 주세요",
-        f"{company['corp_name']}의 기업가치 제고 약속 알림을 신청하셨습니다.\n\n"
+        f"{company['corp_name']}의 기업가치 제고 목표 알림을 신청하셨습니다.\n\n"
         f"아래 링크를 누르면 구독이 시작됩니다.\n{subscription_link('confirm', token)}\n\n"
         "직접 신청하지 않으셨다면 이 메일을 무시해 주세요. 하루 뒤 정보가 삭제됩니다.\n",
     )

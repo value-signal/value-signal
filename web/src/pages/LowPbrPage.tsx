@@ -66,7 +66,7 @@ export function LowPbrPage() {
       <h1 className="page-title">저PBR 기업 명단</h1>
       <p className="page-lead">
         거래소가 공표한 저PBR 기업 중 누가 기업가치 제고 계획을 공시했는지 보여줍니다. Value Signal이
-        채점 중인 기업은 이름을 눌러 약속 이행 현황을 볼 수 있습니다.
+        채점 중인 기업은 이름을 눌러 목표 이행 현황을 볼 수 있습니다.
       </p>
 
       {error && (

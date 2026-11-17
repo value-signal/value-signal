@@ -122,7 +122,7 @@ export function CompanyPage() {
 
       <section className="stat-grid" aria-label="요약">
         <div className="stat-card">
-          <span>찾아낸 약속</span>
+          <span>찾아낸 목표</span>
           <strong>{kpis.length}개</strong>
           <small>
             채점 {scoredCount} · 대기 {kpis.length - scoredCount}
@@ -148,10 +148,10 @@ export function CompanyPage() {
       </section>
 
       <section>
-        <h2 className="section-title">약속 vs 실적</h2>
+        <h2 className="section-title">목표 vs 실적</h2>
         {kpis.length === 0 ? (
           <p className="message">
-            공시 본문에서 숫자와 기한이 있는 약속을 찾지 못했습니다. 상세 내용은 원문을 확인해
+            공시 본문에서 숫자와 기한이 있는 목표를 찾지 못했습니다. 상세 내용은 원문을 확인해
             주세요.
           </p>
         ) : (
@@ -175,12 +175,12 @@ export function CompanyPage() {
 
       {excluded.length > 0 && (
         <section>
-          <h2 className="section-title">채점 제외 약속 {excluded.length}개</h2>
+          <h2 className="section-title">채점 제외 목표 {excluded.length}개</h2>
           <div className="table-card">
             <table>
               <thead>
                 <tr>
-                  <th>약속</th>
+                  <th>지표</th>
                   <th>목표</th>
                   <th>기한</th>
                   <th>사유</th>
